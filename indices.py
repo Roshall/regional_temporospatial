@@ -10,7 +10,7 @@ Tempo2DIdx = partial(TwoLevelMergeIndex, btree.BtreeMap, btree.BtreeMultiMap)
 # key: (duration, (x, y))
 Out3DRegion = partial(TwoLevelMergeIndex, btree.BtreeMap, GridRegion)
 # key:((duration, (x, y)), (duration, begin))
-user_idx = TwoLevelMergeIndex(Out3DRegion, Tempo2DIdx)
+UserIdx = partial(TwoLevelMergeIndex, Out3DRegion, Tempo2DIdx)
 
 
 
