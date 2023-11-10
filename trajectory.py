@@ -1,5 +1,6 @@
+from dataclasses import dataclass
 from collections import namedtuple
-
+from typing import Sequence
 
 TrajTrack = namedtuple('TrajTrace', 'tId start_frame track')
 RawTraj = namedtuple('RawTraj', 'fps life_long bbox traj_track')
@@ -13,3 +14,10 @@ class Trajectory:
     def segment(self, region_id):
         assert self.segment_map is not None
         return self.segment_map.where_contain(region_id, None)
+
+
+@dataclass
+class NaiveTrajectorySeg:
+    id: int
+    points: Sequence
+    more: bool = False  # more segment?
