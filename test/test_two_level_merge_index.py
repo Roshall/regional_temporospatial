@@ -1,7 +1,7 @@
 from functools import partial
 
 from trajectory import Traj_Meta
-from two_level_merge_index import TwoLevelMergeIndex
+from two_level_merge_index import TwoLevelMergeIndex, fuzzy
 from btree import BtreeMap, BtreeMultiMap
 from region import GridRegion
 from test_helper import *
@@ -36,5 +36,13 @@ class TestIndices:
             user_idx.add(key, entry)
             assert user_idx.where_contain(key) == entry
         # search
-        res = list(user_idx.where_intersect([((10, 110), (15, 30, 16, 70)), ((2,100),(1,100))]))
-        assert len(res) == 1
+        res = list(user_idx.where_intersect([((10, 110), (15, 30, 16, 70)), ((2, 100), (1, 100))]))
+        assert len(res) == 3
+
+    def test_fuzzy(self):
+        Tempo2D_fuzzy = partial(fuzzy(TwoLevelMergeIndex), BtreeMap, BtreeMultiMap)
+        user_idx = TwoLevelMergeIndex(self.Out3D, Tempo2D_fuzzy)
+        for *key, entry in zip(keys, zip(durations, begin), content):
+            user_idx.add(key, entry)
+        res = list(user_idx.where_intersect([((10, 110), (15, 30, 16, 70)), (46, 67)]))
+        assert len(res) == 3
