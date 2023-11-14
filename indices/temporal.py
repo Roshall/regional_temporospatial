@@ -1,6 +1,6 @@
 import btree
 
-from db_interface import Index
+from .index_interface import Index
 
 
 class Tempo2DIndex(Index):

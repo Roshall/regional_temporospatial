@@ -1,5 +1,4 @@
-from region import GridRegion, TrajectoryClusteringRegion, Out3DRegion
-from trajectory import Traj_Meta
+from indices.region import GridRegion, Out3DRegion
 from test_helper import *
 
 

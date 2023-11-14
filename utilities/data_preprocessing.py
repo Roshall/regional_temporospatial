@@ -1,21 +1,17 @@
-from collections import namedtuple
-from typing import NamedTuple
-
 import numpy as np
-import pandas as pd
-from trajectory import RawTraj, TrajTrack
+
+from utilities.trajectory import RawTraj, TrajTrack
 
 
-def load_data(file_name, cols_name: list, fps, scale=100):
+def load_data(tracks, cols_name: list, fps, scale=100):
     """
     load raw scv data to trajectory entry.
-    :param file_name: string
+    :param tracks: pandas data frame of tracks
     :param cols_name: [track_id, frame_id, x, y] are wanted, supply their actual properties name in order.
     :param fps: integer
     :param scale: the unit of our coordinate is 'cm', tell us how we scale raw (x, y).
     :return: trajectories tuple with format ('TrajTrace', 'tId start_frame track') and points of all trajectories.
     """
-    tracks = pd.read_csv(file_name)
     tracks = tracks[cols_name]
     frames = tracks[cols_name[1]]
     lifelong = frames.max() - frames.min() + 1
@@ -52,8 +48,9 @@ def draw_traj_point_in_grid(data, reg_borders):
 
 
 if __name__ == '__main__':
-    file_name = '00_tracks.csv'
+    import pandas as pd
+    file_name = '../resource/00_tracks.csv'
     fps = 25
     cols = ['trackId', 'frame', 'xCenter', 'yCenter']
-    raw_traj, raw_tracks = load_data(file_name, cols, fps)
+    raw_traj, raw_tracks = load_data(pd.read_csv(file_name), cols, fps)
     draw_traj_point_in_grid(raw_tracks, gen_border(raw_traj.bbox, 10, 15))

@@ -1,13 +1,14 @@
 import numpy as np
+import pandas as pd
 
-from config import config
-from data_preprocessing import load_data, gen_border
 from run import build_tempo_spatial_index
-from trajectory import NaiveTrajectorySeg
+from utilities.config import config
+from utilities.data_preprocessing import load_data, gen_border
+from utilities.trajectory import NaiveTrajectorySeg
 
 
 class TestBuildTempSpatialIndex:
-    trajs, _ = load_data('../resource/fake_tracks.csv', ['tid', 'frameId', 'x', 'y'], 1)
+    trajs, _ = load_data(pd.read_csv('../resource/fake_tracks.csv'), ['tid', 'frameId', 'x', 'y'], 1)
     broders = gen_border(trajs.bbox, 5, 6)
     config.gird_border = broders
     tempo_spatial = build_tempo_spatial_index(trajs)

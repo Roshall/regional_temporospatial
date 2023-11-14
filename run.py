@@ -1,10 +1,8 @@
 import numpy as np
 
-from config import config
-from data_preprocessing import gen_border
 from indices import UserIdx
-from region import GridRegion
-from trajectory import NaiveTrajectorySeg
+from indices.region import GridRegion
+from utilities.trajectory import NaiveTrajectorySeg
 
 
 def build_tempo_spatial_index(trajs):
@@ -40,5 +38,6 @@ def build_tempo_spatial_index(trajs):
     return user_idx
 
 
-def search(tempo_spat_idx, region, labels, duration, interval):
-    tempo_spat_idx.query(region, labels, duration)
+def search(tempo_spat_idx, region, labels, duration_range, interval):
+    # FIXME: only rectangle region
+    candidates = tempo_spat_idx.where_intersect(((duration_range, region), interval))

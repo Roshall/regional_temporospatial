@@ -1,5 +1,5 @@
-from config import config
-from trajectory import Traj_Meta
+from utilities.config import config
+from utilities.trajectory import Traj_Meta
 
 border = [list(range(8, 31, 2)) + [31], list(range(16, 71, 4))+ [71]]
 config.gird_border = border

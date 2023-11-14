@@ -1,10 +1,10 @@
 from functools import partial
 
-from trajectory import Traj_Meta
-from two_level_merge_index import TwoLevelMergeIndex, fuzzy
 from btree import BtreeMap, BtreeMultiMap
-from region import GridRegion
+
+from indices.region import GridRegion
 from test_helper import *
+from indices.two_level_merge_index import TwoLevelMergeIndex, fuzzy
 
 
 class TestIndices:

@@ -1,9 +1,8 @@
-
-from bisect import bisect_right, bisect_left
+from bisect import bisect_right
 import numpy as np
 
-from db_interface import Index
-from config import config
+from .index_interface import Index
+from utilities.config import config
 
 
 class GridRegion(Index):
@@ -19,7 +18,8 @@ class GridRegion(Index):
         self.territory[self._point2idx(loc)] = entry
 
     def _point2idx(self, loc):
-        return tuple(reversed([bisect_right(dim_grid, dim_point) - 1 for dim_grid, dim_point in zip(self.terr_marker, loc)]))
+        return tuple(
+            reversed([bisect_right(dim_grid, dim_point) - 1 for dim_grid, dim_point in zip(self.terr_marker, loc)]))
 
     def _include(self, loc):
         for dim_grid, dim_point in zip(self.borders, loc):
@@ -64,7 +64,11 @@ class Out3DRegion(Index):
             self.duration_index.add(key.duration, reg)
         reg.add(key.loc, entry)
 
+
 class TrajectoryClusteringRegion(Index):
+    def add(self, key, entry) -> None:
+        pass
+
     def __init__(self, data):
         pass
 
