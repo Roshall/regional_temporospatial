@@ -14,7 +14,7 @@ class TestBuildTempSpatialIndex:
     tempo_spatial = build_tempo_spatial_index(trajs)
 
     def test_build_tempo_spatial_index(self):
-        res = self.tempo_spatial.where_intersect([((10, 30), (0, 1, 0, 1)), (0, 10)])
+        res = self.tempo_spatial.where_intersect([((0, 1, 0, 1), (10, 30)), (0, 10)])
         for entry in res:
             match entry:
                 case NaiveTrajectorySeg(2, seg, True):
