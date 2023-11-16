@@ -19,15 +19,20 @@ class TwoLevelMergeIndex(Index):
         for inner_idx in self._outer.where_intersect(bboxes[0]):
             yield from inner_idx.where_intersect(bboxes[1])
 
-    def fuzzy_intersect(self, bbox):
+    def fuzzy_intersect(self, bboxes):
         """
         linear constrains search
-        :param bbox: just care (dim2_min, dim2_max)
+        :param bboxes: just care (dim2_min, dim2_max)
         :return: all possible region, iterable.
         """
-        lo, hi = bbox
+        lo, hi = bboxes
         for outer_key, inner_idx in self._outer:
             yield from inner_idx.where_intersect((lo-outer_key+1, hi))
+
+    def perhaps_intersect(self, bbox):
+        candidates, probation = self._outer.perhaps_intersect(bbox[0])
+        return (entry for inner in candidates for entry in inner.where_intersect([bbox[1]])),\
+            (entry for inner in probation for entry in inner.where_intersect(bbox[1]))
 
 
 def fuzzy(cls):
