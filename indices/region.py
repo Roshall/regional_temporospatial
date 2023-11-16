@@ -42,6 +42,33 @@ class GridRegion(Index):
         res = self.territory[tuple(reversed(region_ls))]
         return res[res.nonzero()]
 
+    def perhaps_intersect(self, bbox):
+        bbox_iter = iter(bbox)
+        probation_slice = []
+        candidate_slice = []
+        for dim_grid in self.borders:
+            border_min = next(bbox_iter)
+            cand_min = bisect_right(dim_grid, border_min) - 1
+            if dim_grid[cand_min] == border_min:  # is the border grid surely within the bbox?
+                prob_min = cand_min
+            else:
+                prob_min = cand_min + 1
+
+            border_max = next(bbox_iter)
+            if border_max >= dim_grid[-1]:
+                prob_max = len(dim_grid)  # greater than territory's len is ok
+                cand_max = prob_max
+            else:
+                cand_max = bisect_right(dim_grid, border_max, cand_min)  # the end of a slice is exclusive
+                prob_max = cand_max if border_max == dim_grid[cand_max] - 1 else cand_max - 1
+            probation_slice.append(slice(prob_min, prob_max))
+            candidate_slice.append(slice(cand_min, cand_max))
+        probation = self.territory[tuple(reversed(probation_slice))]
+        probation = probation[probation.nonzero()]
+        candidate = self.territory[tuple(reversed(candidate_slice))]
+        candidate = candidate[candidate.nonzero()]
+        return np.setdiff1d(candidate, probation, assume_unique=True), probation
+
 
 class Out3DRegion(Index):
     def __init__(self, data=None):

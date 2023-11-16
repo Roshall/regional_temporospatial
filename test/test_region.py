@@ -1,5 +1,7 @@
+import numpy as np
+
 from indices.region import GridRegion, Out3DRegion
-from test_helper import *
+from test.test_helper import *
 
 
 class TestGrid:
@@ -19,6 +21,22 @@ class TestGrid:
         A = [self.grid.territory, self.grid.territory, self.grid.territory[:-1, 1:-1]]
         for q, a in zip(Q, A):
             assert (self.grid.where_intersect(q) == a.flatten()).all()
+
+    def test_perhaps_intersect(self):
+        Q = [(8, 30, 16, 71), (9, 29, 16, 71), (8, 28, 19, 70), (15, 21, 25, 55), (15, 20, 25, 54),
+             (12, 13, 21, 23), (12, 13, 20, 22), (12, 12, 20, 23), (12, 13, 20, 23)]
+        world = self.grid.territory
+        A = [(np.array([]), world), (world[:, 0], world[:, 1:-1]),
+             (np.concatenate([world[0, :-1], world[1:, -2]]), world[1:, :-2]),
+             (np.concatenate([world[2, 4:7].flatten(), world[2:10, 3].flatten()]), world[3:10, 4:7]),
+             (np.concatenate([world[[2, 9], 4:6].flatten(), world[2:10, [3, 6]].flatten()]), world[3:9, 4:6]),
+             (world[1:2, 2], np.array([])), (world[1:2, 2], np.array([])), (world[1:2, 2], np.array([])),
+             (np.array([]), world[1:2, 2])]
+
+        for q, (a_cand, a_prob) in zip(Q, A):
+            cand, prob = self.grid.perhaps_intersect(q)
+            assert set(prob) == set(a_prob.flatten())
+            assert set(cand) == set(a_cand.flatten())
 
 
 class Test3DRegion:
