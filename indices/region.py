@@ -21,14 +21,14 @@ class GridRegion(Index):
         return tuple(
             reversed([bisect_right(dim_grid, dim_point) - 1 for dim_grid, dim_point in zip(self.terr_marker, loc)]))
 
-    def _include(self, loc):
+    def _inclose(self, loc):
         for dim_grid, dim_point in zip(self.borders, loc):
             if dim_point < dim_grid[0] or dim_point > dim_grid[-1]:
                 return False
         return True
 
     def where_contain(self, loc):
-        if not self._include(loc):
+        if not self._inclose(loc):
             return
         return self.territory[self._point2idx(loc)]
 
@@ -90,6 +90,14 @@ class Out3DRegion(Index):
             reg = GridRegion()
             self.duration_index.add(key.duration, reg)
         reg.add(key.loc, entry)
+
+
+def unsure(cls):
+    def unsure_cls():
+        instance = cls()
+        instance.where_intersect = instance.perhaps_intersect
+        return instance
+    return unsure_cls
 
 
 class TrajectoryClusteringRegion(Index):
