@@ -2,16 +2,15 @@ from functools import partial
 
 from btree import BtreeMap, BtreeMultiMap
 
-from indices.region import GridRegion
+from indices.region import GridRegion, unsure
 from test.test_helper import *
-from indices.two_level_merge_index import TwoLevelMergeIndex, fuzzy
+from indices.two_level_merge_index import TwoLevelMergeIndex
 
 
 class TestIndices:
     Out3D = partial(TwoLevelMergeIndex, GridRegion, BtreeMap)
     Tempo2D = partial(TwoLevelMergeIndex, BtreeMap, BtreeMultiMap)
-    Tempo2D_fuzzy = partial(fuzzy(TwoLevelMergeIndex), BtreeMap, BtreeMultiMap)
-    fuzzy_user = TwoLevelMergeIndex(Out3D, Tempo2D_fuzzy)
+    Tempo2D_fuzzy = partial(TwoLevelMergeIndex, BtreeMap, BtreeMultiMap, 'FuzzySearch')
 
     def test_out3d(self):
         out3d = self.Out3D()
@@ -30,7 +29,7 @@ class TestIndices:
             assert tempo2d.where_contain(key) == entry
 
         res = list(tempo2d.where_intersect([(2,100),(1,100)]))
-        assert len(res) == 2
+        assert len(res) == 4
 
     def test_user_idx(self):
         user_idx = TwoLevelMergeIndex(self.Out3D, self.Tempo2D)
@@ -42,14 +41,26 @@ class TestIndices:
         assert len(res) == 3
 
     def test_fuzzy(self):
+        fuzzy_user = TwoLevelMergeIndex(self.Out3D, self.Tempo2D_fuzzy)
         for *key, entry in zip(keys, zip(durations, begin), content):
-            self.fuzzy_user.add(key, entry)
-        res = list(self.fuzzy_user.where_intersect([((15, 30, 16, 70), (10, 110)), (46, 67)]))
+            fuzzy_user.add(key, entry)
+        res = list(fuzzy_user.where_intersect([((15, 30, 16, 70), (10, 110)), (46, 67)]))
+        assert len(res) == 3
+
+    def test_fuzzy_inner_all(self):
+        fuzzy_tempo_inner_all = partial(TwoLevelMergeIndex, BtreeMap, BtreeMultiMap, 'FuzzyInnerAll')
+        user_idx = TwoLevelMergeIndex(self.Out3D, fuzzy_tempo_inner_all)
+        for *key, entry in zip(keys, zip(durations, begin), content):
+            user_idx.add(key, entry)
+        tempo_set = user_idx.where_intersect([((15, 30, 16, 70), (10, 110)), (46, 67)])
+        res = [entry for temp in tempo_set for entry in temp]
         assert len(res) == 3
 
     def test_perhaps_intersect(self):
+        out3D = partial(TwoLevelMergeIndex, unsure(GridRegion), BtreeMap, 'NotSureSearch')
+        user_perhaps = TwoLevelMergeIndex(out3D, self.Tempo2D_fuzzy, 'NotSureSearch')
         for *key, entry in zip(keys, zip(durations, begin), content):
-            self.fuzzy_user.add(key, entry)
-        candidates, probation = self.fuzzy_user.perhaps_intersect([((15, 30, 16, 70), (10, 110)), (46, 67)])
+            user_perhaps.add(key, entry)
+        candidates, probation = user_perhaps.where_intersect([((15, 30, 16, 70), (10, 110)), (46, 67)])
         assert len(list(candidates)) == 0
         assert len(list(probation)) == 3
