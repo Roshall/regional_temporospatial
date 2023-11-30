@@ -27,14 +27,16 @@ def build_tempo_spatial_index(trajs):
         for pid, coord in enumerate(track_iter, 1):
             if (last_reg := reg.where_contain(coord)) is not first_reg:
                 # 2. insert to index
-                user_idx.add(((track[start], track_life), (end - start, start + beg)),
-                             NaiveTrajectorySeg(tid, track[start:end], True))
+                ts_beg = start + beg
+                user_idx.add(((track[start], track_life), (end - start, ts_beg)),
+                             NaiveTrajectorySeg(tid, ts_beg, track[start:end]))
                 start = end
                 first_reg = last_reg
             end += 1
 
-        user_idx.add(((track[start], track_life), (end - start, start + beg)),
-                     NaiveTrajectorySeg(tid, track[start:end]))
+        ts_beg = start + beg
+        user_idx.add(((track[start], track_life), (end - start, ts_beg)),
+                     NaiveTrajectorySeg(tid, ts_beg, track[start:end]))
     return user_idx
 
 

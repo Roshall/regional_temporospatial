@@ -17,8 +17,20 @@ class Trajectory:
         return self.segment_map.where_contain(region_id, None)
 
 
-@dataclass
-class NaiveTrajectorySeg:
+@dataclass(slots=True)
+class BasicTrajectorySeg:
     id: int
+    begin: int
+
+    def __lt__(self, other):
+        return self.begin < other.begin
+
+
+@dataclass(slots=True)
+class RunTimeTrajectorySeg(BasicTrajectorySeg):
+    len: int
+
+
+@dataclass(slots=True)
+class NaiveTrajectorySeg(BasicTrajectorySeg):
     points: Sequence
-    more: bool = False  # more segment?

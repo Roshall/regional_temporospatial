@@ -14,14 +14,15 @@ class TestBuildTempSpatialIndex:
     tempo_spatial = build_tempo_spatial_index(trajs)
 
     def test_build_tempo_spatial_index(self):
-        res = self.tempo_spatial.where_intersect([((0, 1, 0, 1), (10, 30)), (0, 10)])
-        for entry in res:
-            match entry:
-                case NaiveTrajectorySeg(2, seg, True):
-                    ans = np.array([[0, 20], [20, 30], [60, 50], [90, 78]])
-                    assert (seg == ans).all()
-                case NaiveTrajectorySeg(1, seg, True):
-                    ans = np.array([[0, 0], [20, 10], [50, 13], [70, 40]])
-                    assert (seg == ans).all()
-                case _:
-                    assert False
+        cands, probs = self.tempo_spatial.where_intersect([((0, 1, 0, 1), (10, 30)), (0, 10)])
+        for can in cands:
+            for entry in can:
+                match entry:
+                    case NaiveTrajectorySeg(2, _, seg):
+                        ans = np.array([[0, 20], [20, 30], [60, 50], [90, 78]])
+                        assert (seg == ans).all()
+                    case NaiveTrajectorySeg(1, _, seg):
+                        ans = np.array([[0, 0], [20, 10], [50, 13], [70, 40]])
+                        assert (seg == ans).all()
+                    case _:
+                        assert False
