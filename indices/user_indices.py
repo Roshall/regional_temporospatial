@@ -9,9 +9,9 @@ from .two_level_merge_index import TwoLevelMergeIndex
 # overlapping within the searching interval. Therefore, fuzzy search is needed.
 # key: (duration, begin)
 Tempo2DIdx = partial(TwoLevelMergeIndex, btree.BtreeMap, btree.BtreeMultiMap, 'FuzzyInnerAll')
-# key: (duration, (x, y))
+# key: ((x, y), duration)
 Out3DRegion = partial(TwoLevelMergeIndex, unsure(GridRegion), btree.BtreeMap, 'NotSureSearch')
-# key:((duration, (x, y)), (duration, begin))
+# key:(((x, y), duration), (duration, begin))
 UserIdx = partial(TwoLevelMergeIndex, Out3DRegion, Tempo2DIdx, 'NotSureSearch')
 
 
