@@ -71,7 +71,7 @@ class IntersectNotSureSearch(IntersectStrategy):
 
     def __call__(self, bboxes):
         candidates, probation = self._outer.where_intersect(bboxes[0])
-        return (entry for inner in candidates for entry in inner.where_intersect([bboxes[1]])), \
+        return (entry for inner in candidates for entry in inner.where_intersect(bboxes[1])), \
             (entry for inner in probation for entry in inner.where_intersect(bboxes[1]))
 
 
