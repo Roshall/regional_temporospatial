@@ -21,8 +21,8 @@ class Box2D:
         :return: three points
         """
         points = np.empty((3, 2))
-        points[0] = self.bbox[::1]
-        points[1] = self.bbox[::2]
+        points[0] = self.bbox[::2]
+        points[1] = self.bbox[::3]
         points[2] = self.bbox[1:3]
         return points
 
