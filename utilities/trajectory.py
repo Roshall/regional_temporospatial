@@ -2,7 +2,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 from typing import Sequence
 
-TrajTrack = namedtuple('TrajTrace', 'tId start_frame track')
+TrajTrack = namedtuple('TrajTrace', 'tId clsId start_frame track')
 RawTraj = namedtuple('RawTraj', 'fps life_long bbox traj_track')
 Traj_Meta = namedtuple('meta_key', 'duration loc')
 
@@ -21,6 +21,7 @@ class Trajectory:
 class BasicTrajectorySeg:
     id: int
     begin: int
+    label: int
 
     def __lt__(self, other):
         return self.begin < other.begin

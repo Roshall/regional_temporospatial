@@ -7,7 +7,7 @@ def load_data(tracks, cols_name: list, fps, scale=100):
     """
     load raw scv data to trajectory entry.
     :param tracks: pandas data frame of tracks
-    :param cols_name: [track_id, frame_id, x, y] are wanted, supply their actual properties name in order.
+    :param cols_name: [track_id, cls_id, frame_id, x, y, cls_id] are wanted, supply their actual properties name in order.
     :param fps: integer
     :param scale: the unit of our coordinate is 'cm', tell us how we scale raw (x, y).
     :return: trajectories tuple with format ('TrajTrace', 'tId start_frame track') and points of all trajectories.
@@ -15,23 +15,23 @@ def load_data(tracks, cols_name: list, fps, scale=100):
     tracks = tracks[cols_name]
     frames = tracks[cols_name[1]]
     lifelong = frames.max() - frames.min() + 1
-    X = tracks[cols_name[-2]]
-    Y = tracks[cols_name[-1]]
+    X = tracks[cols_name[2]]
+    Y = tracks[cols_name[3]]
     bbox = np.array((X.min(), X.max(), Y.min(), Y.max())) * scale
     bbox = bbox.astype(np.int32)
     traces_by_id = tracks.groupby(cols_name[0])
     traj_ls = []
     for tid, t in traces_by_id:
-        start_frame = t[cols_name[1]].iat[0]
+        start_frame, cls_id = t[cols_name[1:3]].iloc[0]
         trajs = (t[cols_name[-2:]].to_numpy() * scale).astype(np.int32)
-        traj_ls.append(TrajTrack(tid, start_frame, trajs))
-    return RawTraj(fps, lifelong, bbox, traj_ls), tracks[cols_name[-2:]].to_numpy()
+        traj_ls.append(TrajTrack(tid, cls_id,  start_frame, trajs))
+    return RawTraj(fps, lifelong, bbox, traj_ls), tracks[cols_name[2:-1]].to_numpy()
 
 
 def gen_border(bbox, x_num, y_num):
     xmin, xmax, ymin, ymax = bbox
-    x_series = np.linspace(xmin, xmax, x_num)
-    y_series = np.linspace(ymin, ymax, y_num)
+    x_series = np.linspace(xmin, xmax, x_num, dtype=int)
+    y_series = np.linspace(ymin, ymax, y_num, dtype=int)
     return x_series, y_series
 
 

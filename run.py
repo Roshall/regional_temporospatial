@@ -23,7 +23,7 @@ def build_tempo_spatial_index(trajs):
     fill = np.vectorize(_C)
     reg.territory = fill(reg.territory)
 
-    for tid, beg, track in trajs.traj_track:
+    for tid, label, beg, track in trajs.traj_track:
         track_iter = iter(track)
         first_reg = reg.where_contain(next(track_iter))
         track_life = len(track)
@@ -33,15 +33,16 @@ def build_tempo_spatial_index(trajs):
             if (last_reg := reg.where_contain(coord)) is not first_reg:
                 # 2. insert to index
                 ts_beg = start + beg
+                # FIXME: consider label
                 user_idx.add(((track[start], track_life), (end - start, ts_beg)),
-                             NaiveTrajectorySeg(tid, ts_beg, track[start:end]))
+                             NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
                 start = end
                 first_reg = last_reg
             end += 1
 
         ts_beg = start + beg
         user_idx.add(((track[start], track_life), (end - start, ts_beg)),
-                     NaiveTrajectorySeg(tid, ts_beg, track[start:end]))
+                     NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
     return user_idx
 
 
@@ -72,7 +73,7 @@ def verify_seg(region, segment: NaiveTrajectorySeg, interval):
     seg_lens_mid = seg_lens[1:-1]
     seg_lens_mid[seg_lens_mid < interval] = 0
 
-    res_seg = [RunTimeTrajectorySeg(segment.id, segment.begin + pos + 1, len_)
+    res_seg = [RunTimeTrajectorySeg(segment.id, segment.begin + pos + 1,segment.label, len_)
                for pos, len_ in zip(break_pos, seg_lens) if len_ > 0]
     return res_seg
 
@@ -107,7 +108,7 @@ def search(tempo_spat_idx, region: Box2D, labels, duration_range, interval):
                         pass
             for tra_id, tra in pre_insert.items():
                 assert tra_id in active_space
-                active_space[tra_id] = tra.begin
+                active_space[tra_id] = (tra.begin, tra.label)
                 heapq.heappush(end_queue, (tra.len + tra.begin, tra_id))
             pre_insert.clear()
             next_end = end_queue[0][0]
