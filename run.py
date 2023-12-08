@@ -1,5 +1,6 @@
 import heapq
 import math
+from collections import defaultdict
 from operator import attrgetter
 
 import numpy as np
@@ -78,6 +79,22 @@ def verify_seg(region, segment: NaiveTrajectorySeg, interval):
     return res_seg
 
 
+def yield_co_move(active_space, timestamp, interval, labels, cur_id):
+    result_bag = defaultdict(lambda: 0)
+    for tra_id, label in active_space:
+        if tra_id <= timestamp:
+            result_bag[tra_id] += 1
+        elif timestamp - active_space[tra_id] < interval:
+            break
+
+    if result_bag.keys() == labels.keys():
+        for tra_id in labels.keys():
+            if result_bag[tra_id] < labels[tra_id]:
+                return None
+
+        return list(result_bag.keys()), active_space[cur_id], timestamp
+
+
 def search(tempo_spat_idx, region: Box2D, labels, duration_range, interval):
     # FIXME: only rectangle region
     # TODO: ADD labels
@@ -105,7 +122,9 @@ def search(tempo_spat_idx, region: Box2D, labels, duration_range, interval):
                         del active_space[tra_id]
                     else:
                         # produce result
-                        pass
+                        res = yield_co_move(active_space, end, interval, labels, tra_id)
+                        if res:
+                            yield res
             for tra_id, tra in pre_insert.items():
                 assert tra_id in active_space
                 active_space[tra_id] = (tra.begin, tra.label)
@@ -116,7 +135,8 @@ def search(tempo_spat_idx, region: Box2D, labels, duration_range, interval):
     while end_queue:
         end, tra_id = heapq.heappop(end_queue)
         if end - active_space[tra_id] < interval:
-            del active_space
+            del active_space[tra_id]
         else:
-            # produce result
-            pass
+            res = yield_co_move(active_space, end, interval, labels, tra_id)
+            if res:
+                yield res
