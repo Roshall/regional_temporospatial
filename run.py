@@ -1,6 +1,8 @@
 import heapq
 import math
-from collections import defaultdict
+from collections import defaultdict, Counter
+from collections.abc import Iterable
+from itertools import chain
 from operator import attrgetter
 
 import numpy as np
@@ -15,12 +17,13 @@ def build_tempo_spatial_index(trajs):
     # 1. find trajectory's region
     # config.gird_border = gen_border(trajs.bbox, 10, 15)
     reg = GridRegion()
-    user_idx = UserIdx()
+    user_idx = defaultdict(UserIdx)
 
     # we need to fill the territory with distinct objects
     class _C:
         def __init__(self, arg):
             pass
+
     fill = np.vectorize(_C)
     reg.territory = fill(reg.territory)
 
@@ -35,20 +38,20 @@ def build_tempo_spatial_index(trajs):
                 # 2. insert to index
                 ts_beg = start + beg
                 # FIXME: consider label
-                user_idx.add(((track[start], track_life), (end - start, ts_beg)),
-                             NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
+                user_idx[label].add(((track[start], track_life), (end - start, ts_beg)),
+                                    NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
                 start = end
                 first_reg = last_reg
             end += 1
 
         ts_beg = start + beg
-        user_idx.add(((track[start], track_life), (end - start, ts_beg)),
-                     NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
+        user_idx[label].add(((track[start], track_life), (end - start, ts_beg)),
+                            NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
     return user_idx
 
 
 def candidate_verified_queue(region, candidates, interval, buffer_size: int = 1024):
-    cand_queue = heapq.merge(*candidates)
+    cand_queue = heapq.merge(*chain.from_iterable(candidates))
     verified_heap = []
     # build queue
     for cand_seg in cand_queue:
@@ -74,39 +77,49 @@ def verify_seg(region, segment: NaiveTrajectorySeg, interval):
     seg_lens_mid = seg_lens[1:-1]
     seg_lens_mid[seg_lens_mid < interval] = 0
 
-    res_seg = [RunTimeTrajectorySeg(segment.id, segment.begin + pos + 1,segment.label, len_)
+    res_seg = [RunTimeTrajectorySeg(segment.id, segment.begin + pos + 1, segment.label, len_)
                for pos, len_ in zip(break_pos, seg_lens) if len_ > 0]
     return res_seg
 
 
-def yield_co_move(active_space, timestamp, interval, labels, cur_id):
-    result_bag = defaultdict(lambda: 0)
-    for tra_id, label in active_space:
-        if tra_id <= timestamp:
-            result_bag[tra_id] += 1
-        elif timestamp - active_space[tra_id] < interval:
+def yield_co_move(active_space, timestamp, interval, labels, id_cand):
+    end_cand = []
+    begin_cand = []
+    label_cand = []
+    for tra_id in id_cand:
+        tinfo = active_space.pop(tra_id)
+        if timestamp - tinfo[0] >= interval:
+            end_cand.append(tra_id)
+            begin_cand.append(tinfo[0])
+            label_cand.append(tinfo[1])
+
+    result_bag = Counter(label_cand)
+    ids = id_cand[:]
+    for traj_id, traj in active_space.items():
+        if timestamp - traj[0] < interval:
             break
+        else:
+            result_bag[traj[1]] += 1
+            ids.append(traj_id)
 
+    # It's impossible for result bag to have more keys. because we filtered labels first.
     if result_bag.keys() == labels.keys():
-        for tra_id in labels.keys():
+        for tra_id in labels:
             if result_bag[tra_id] < labels[tra_id]:
-                return None
+                return []
 
-        return list(result_bag.keys()), active_space[cur_id], timestamp
+        return [(ids, beg, timestamp) for beg in begin_cand]
 
 
-def search(tempo_spat_idx, region: Box2D, labels, duration_range, interval):
-    # FIXME: only rectangle region
-    # TODO: ADD labels
-    candidates, probation = tempo_spat_idx.perhaps_intersect(((region.bbox, duration_range), interval))
-    traj_queue = heapq.merge(*probation, candidate_verified_queue(region, candidates, interval), key=attrgetter('begin'))
+def sequential_search(trajs: Iterable, query_labels: dict, interval: int):
     end_queue = []
     next_end = math.inf
     active_space = {}
     pre_insert = {}
     new_ = -1
+    id_cand = []
 
-    for traj in traj_queue:
+    for traj in trajs:
         begin = traj.begin
         if new_ == begin:
             assert traj.id in pre_insert
@@ -114,17 +127,14 @@ def search(tempo_spat_idx, region: Box2D, labels, duration_range, interval):
         else:
             new_ = begin
             if next_end == new_:
-                while next_end == end_queue[0][0]:
-                    end, tra_id = heapq.heappop(end_queue)
-                    if tra_id in pre_insert:
-                        del pre_insert[tra_id]
-                    elif end - active_space[tra_id] < interval:
-                        del active_space[tra_id]
-                    else:
-                        # produce result
-                        res = yield_co_move(active_space, end, interval, labels, tra_id)
-                        if res:
-                            yield res
+                id_cand.clear()
+                while end_queue and next_end == end_queue[0][0]:
+                    id_cand.append(heapq.heappop(end_queue))
+                # produce result
+                yield from yield_co_move(active_space, next_end, interval, query_labels, id_cand)
+                for tid in id_cand:
+                    pre_insert.pop(tid, None)
+
             for tra_id, tra in pre_insert.items():
                 assert tra_id in active_space
                 active_space[tra_id] = (tra.begin, tra.label)
@@ -133,10 +143,19 @@ def search(tempo_spat_idx, region: Box2D, labels, duration_range, interval):
             next_end = end_queue[0][0]
 
     while end_queue:
-        end, tra_id = heapq.heappop(end_queue)
-        if end - active_space[tra_id] < interval:
-            del active_space[tra_id]
-        else:
-            res = yield_co_move(active_space, end, interval, labels, tra_id)
-            if res:
-                yield res
+        next_end = end_queue[0][0]
+        id_cand.clear()
+        while end_queue and next_end == end_queue[0][0]:
+            id_cand.append(heapq.heappop(end_queue))
+        yield from yield_co_move(active_space, next_end, interval, query_labels, id_cand)
+
+
+def base_query_alg(tempo_spat_idx, region: Box2D, labels: dict, duration_range, interval: int):
+    # FIXME: only rectangle region
+    candidates, probation = zip(*(tempo_spat_idx[label].perhaps_intersect(((region.bbox, duration_range), interval))
+                                  for label in labels))
+    # candidates, probation = tempo_spat_idx.perhaps_intersect(((region.bbox, duration_range), interval))
+    traj_queue = heapq.merge(*chain.from_iterable(probation), candidate_verified_queue(region, candidates, interval),
+                             key=attrgetter('begin'))
+
+    sequential_search(traj_queue, labels, interval)
