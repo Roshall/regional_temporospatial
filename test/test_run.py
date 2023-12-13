@@ -4,12 +4,14 @@ import pandas as pd
 from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue
 from utilities.box2D import Box2D
 from utilities.config import config
-from utilities.data_preprocessing import load_data, gen_border
+from utilities.data_preprocessing import traj_data, gen_border
 from utilities.trajectory import NaiveTrajectorySeg, RunTimeTrajectorySeg
+from utilities import dataset
 
 
-class TestBuildTempSpatialIndex:
-    trajs, _ = load_data(pd.read_csv('../resource/fake_tracks.csv'), ['tid', 'frameId', 'x', 'y'], 1)
+class TestTempSpatialIndex:
+    cls_map, data = dataset.load_fake()
+    trajs = traj_data(data, ['tid', 'frameId', 'x', 'y'], 1, cls_map)
     broders = gen_border(trajs.bbox, 5, 6)
     config.gird_border = broders
     tempo_spatial = build_tempo_spatial_index(trajs)

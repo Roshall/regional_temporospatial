@@ -3,12 +3,13 @@ import numpy as np
 from utilities.trajectory import RawTraj, TrajTrack
 
 
-def load_data(tracks, cols_name: list, fps, scale=100):
+def traj_data(tracks, cols_name: list, fps, label_map, scale=100):
     """
     load raw scv data to trajectory entry.
     :param tracks: pandas data frame of tracks
-    :param cols_name: [track_id, cls_id, frame_id, x, y, cls_id] are wanted, supply their actual properties name in order.
+    :param cols_name: [track_id, frame_id, x, y] are wanted, supply their actual properties name in order.
     :param fps: integer
+    :param label_map: map traj id to its label
     :param scale: the unit of our coordinate is 'cm', tell us how we scale raw (x, y).
     :return: trajectories tuple with format ('TrajTrace', 'tId start_frame track') and points of all trajectories.
     """
@@ -22,10 +23,11 @@ def load_data(tracks, cols_name: list, fps, scale=100):
     traces_by_id = tracks.groupby(cols_name[0])
     traj_ls = []
     for tid, t in traces_by_id:
-        start_frame, cls_id = t[cols_name[1:3]].iloc[0]
+        cls_id = label_map[tid]
+        start_frame = t[cols_name[1]].iat[0]
         trajs = (t[cols_name[-2:]].to_numpy() * scale).astype(np.int32)
         traj_ls.append(TrajTrack(tid, cls_id,  start_frame, trajs))
-    return RawTraj(fps, lifelong, bbox, traj_ls), tracks[cols_name[2:-1]].to_numpy()
+    return RawTraj(fps, lifelong, bbox, traj_ls)
 
 
 def gen_border(bbox, x_num, y_num):
@@ -48,9 +50,13 @@ def draw_traj_point_in_grid(data, reg_borders):
 
 
 if __name__ == '__main__':
-    import pandas as pd
-    file_name = '../resource/00_tracks.csv'
+    import dataset
+    import os
+
+    file_path = os.path.join(os.path.dirname(__file__), '../resource')
     fps = 25
+    cls_map, data = dataset.load_rounD(file_path, '00')
     cols = ['trackId', 'frame', 'xCenter', 'yCenter']
-    raw_traj, raw_tracks = load_data(pd.read_csv(file_name), cols, fps)
-    draw_traj_point_in_grid(raw_tracks, gen_border(raw_traj.bbox, 10, 15))
+    raw_traj = traj_data(data, cols, fps, cls_map)
+    XY = data[cols[-2:]].to_numpy()
+    draw_traj_point_in_grid(XY, gen_border(raw_traj.bbox, 10, 15))
