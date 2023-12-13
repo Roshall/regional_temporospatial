@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue
+from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue, yield_co_move
 from utilities.box2D import Box2D
 from utilities.config import config
 from utilities.data_preprocessing import traj_data, gen_border
@@ -61,3 +61,20 @@ def test_candidate_verified_queue():
     data = list(candidate_verified_queue(region, cand, 5, 10))
     assert len(list(data)) == 30
 
+
+def test_yield_co_move():
+    duration = 5
+    obj_info = [(1, 0), (4, 1), (8, 1), (9, 2), (10, 0), (11, 0)]
+    active_space = dict(enumerate(obj_info))
+    ts = 15
+    ids = [1, 2, 4]
+
+    labels = {0: 2, 1: 2, 2: 1}
+    test_map = dict(active_space)
+    res = yield_co_move(duration, labels, test_map, ts, ids)
+    assert len(res) == 3
+
+    labels = {0: 3, 1: 1, 2: 1}
+    test_map = dict(active_space)
+    res = yield_co_move(duration, labels, test_map, ts, ids)
+    assert len(res) == 0

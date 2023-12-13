@@ -1,7 +1,9 @@
 import heapq
 import math
 from collections import defaultdict, Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, MutableMapping, Callable
+from collections.abc import Mapping, Sequence
+from functools import partial
 from itertools import chain
 from operator import attrgetter
 
@@ -82,13 +84,23 @@ def verify_seg(region, segment: NaiveTrajectorySeg, interval):
     return res_seg
 
 
-def yield_co_move(active_space, timestamp, interval, labels, id_cand):
+def yield_co_move(duration: int, labels: Mapping[int, int], active_space: MutableMapping[int, tuple[int, int]],
+                  timestamp: int, id_cand: Sequence):
+    """
+    a co-movement checker respecting objects' label and count and their co-moving duration .
+    :param duration: objects co-moving duration
+    :param labels: {obj_label: count}
+    :param active_space: {obj_id: (begin, label)}
+    :param timestamp: current processing time
+    :param id_cand: all objects need processing
+    :return: list of tuple(ids, start, end)
+    """
     end_cand = []
     begin_cand = []
     label_cand = []
     for tra_id in id_cand:
         tinfo = active_space.pop(tra_id)
-        if timestamp - tinfo[0] >= interval:
+        if timestamp - tinfo[0] >= duration:
             end_cand.append(tra_id)
             begin_cand.append(tinfo[0])
             label_cand.append(tinfo[1])
@@ -96,19 +108,21 @@ def yield_co_move(active_space, timestamp, interval, labels, id_cand):
     result_bag = Counter(label_cand)
     ids = id_cand[:]
     for traj_id, traj in active_space.items():
-        if timestamp - traj[0] < interval:
+        if timestamp - traj[0] < duration:
             break
         else:
             result_bag[traj[1]] += 1
             ids.append(traj_id)
 
     # It's impossible for result bag to have more keys. because we filtered labels first.
-    if result_bag.keys() == labels.keys():
+    assert len(result_bag) <= len(labels)
+    if len(result_bag) == len(labels):
         for tra_id in labels:
             if result_bag[tra_id] < labels[tra_id]:
                 return []
-
         return [(ids, beg, timestamp) for beg in begin_cand]
+    else:
+        return []
 
 
 def sequential_search(trajs: Iterable, query_labels: dict, interval: int):
