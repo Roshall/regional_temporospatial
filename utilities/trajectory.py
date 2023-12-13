@@ -35,3 +35,7 @@ class RunTimeTrajectorySeg(BasicTrajectorySeg):
 @dataclass(slots=True)
 class NaiveTrajectorySeg(BasicTrajectorySeg):
     points: Sequence
+
+    @property
+    def len(self):
+        return len(self.points)
