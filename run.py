@@ -125,7 +125,7 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
         return []
 
 
-def sequential_search(trajs: Iterable, query_labels: dict, interval: int):
+def sequential_search(trajs: Iterable, co_move_verifier: Callable[[MutableMapping, int, Sequence], Iterable]):
     end_queue = []
     next_end = math.inf
     active_space = {}
@@ -145,7 +145,7 @@ def sequential_search(trajs: Iterable, query_labels: dict, interval: int):
                 while end_queue and next_end == end_queue[0][0]:
                     id_cand.append(heapq.heappop(end_queue))
                 # produce result
-                yield from yield_co_move(active_space, next_end, interval, query_labels, id_cand)
+                yield from co_move_verifier(active_space, next_end, id_cand)
                 for tid in id_cand:
                     pre_insert.pop(tid, None)
 
@@ -161,15 +161,15 @@ def sequential_search(trajs: Iterable, query_labels: dict, interval: int):
         id_cand.clear()
         while end_queue and next_end == end_queue[0][0]:
             id_cand.append(heapq.heappop(end_queue))
-        yield from yield_co_move(active_space, next_end, interval, query_labels, id_cand)
+        yield from co_move_verifier(active_space, next_end, id_cand)
 
 
-def base_query_alg(tempo_spat_idx, region: Box2D, labels: dict, duration_range, interval: int):
+def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, interval: int):
     # FIXME: only rectangle region
     candidates, probation = zip(*(tempo_spat_idx[label].perhaps_intersect(((region.bbox, duration_range), interval))
                                   for label in labels))
     # candidates, probation = tempo_spat_idx.perhaps_intersect(((region.bbox, duration_range), interval))
     traj_queue = heapq.merge(*chain.from_iterable(probation), candidate_verified_queue(region, candidates, interval),
                              key=attrgetter('begin'))
-
-    sequential_search(traj_queue, labels, interval)
+    verifier = partial(yield_co_move, duration_range[0], labels)
+    sequential_search(traj_queue, verifier)
