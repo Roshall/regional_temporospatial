@@ -35,11 +35,10 @@ def build_tempo_spatial_index(trajs):
         track_life = len(track)
         start, end = 0, 1
         # if some point jumps to another region, we cut the trajectory to a new segment.
-        for pid, coord in enumerate(track_iter, 1):
+        for coord in track_iter:
             if (last_reg := reg.where_contain(coord)) is not first_reg:
                 # 2. insert to index
                 ts_beg = start + beg
-                # FIXME: consider label
                 user_idx[label].add(((track[start], track_life), (end - start, ts_beg)),
                                     NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
                 start = end
