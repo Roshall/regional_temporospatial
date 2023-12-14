@@ -124,43 +124,61 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
         return []
 
 
-def sequential_search(trajs: Iterable, co_move_verifier: Callable[[MutableMapping, int, Sequence], Iterable]):
-    end_queue = []
-    next_end = math.inf
+def sequential_search(trajs: Iterable, interval, co_move_verifier: Callable[[MutableMapping, int, Sequence], Iterable]):
+    start, finish = interval
     active_space = {}
     pre_insert = {}
-    new_ = -1
+    end_queue = []
+    end_queue_push = partial(heapq.heappush, end_queue)
+    end_queue_pop = partial(heapq.heappop, end_queue)
+
+    new_ = start
+    next_end = finish
     id_cand = []
 
     for traj in trajs:
-        begin = traj.begin
+        begin = max(traj.begin, start)
         if new_ == begin:
-            assert traj.id in pre_insert
+            assert traj.id not in pre_insert
             pre_insert[traj.id] = traj
         else:
             new_ = begin
-            if next_end == new_:
-                id_cand.clear()
+            if next_end < new_:
                 while end_queue and next_end == end_queue[0][0]:
-                    id_cand.append(heapq.heappop(end_queue))
+                    _, tid = end_queue_pop()
+                    if (revising := pre_insert.pop(tid, None)) is None:
+                        id_cand.append(tid)
+                    else:
+                        end_queue_push((revising.len + revising.begin, tid))
                 # produce result
-                yield from co_move_verifier(active_space, next_end, id_cand)
-                for tid in id_cand:
-                    pre_insert.pop(tid, None)
+                if id_cand:
+                    yield from co_move_verifier(active_space, next_end, id_cand)
+                    id_cand.clear()
 
-            for tra_id, tra in pre_insert.items():
-                assert tra_id in active_space
-                active_space[tra_id] = (tra.begin, tra.label)
-                heapq.heappush(end_queue, (tra.len + tra.begin, tra_id))
+            next_end = update(active_space, end_queue, end_queue_push, pre_insert)
             pre_insert.clear()
-            next_end = end_queue[0][0]
+            pre_insert[traj.id] = traj
+
+    next_end = update(active_space, end_queue, end_queue_push, pre_insert)
 
     while end_queue:
-        next_end = end_queue[0][0]
-        id_cand.clear()
+        if next_end >= finish:
+            yield from co_move_verifier(active_space, finish, [info[1] for info in end_queue])
+            break
         while end_queue and next_end == end_queue[0][0]:
-            id_cand.append(heapq.heappop(end_queue))
+            id_cand.append(end_queue_pop()[1])
         yield from co_move_verifier(active_space, next_end, id_cand)
+        id_cand.clear()
+        next_end = end_queue[0][0]
+
+
+def update(active_space, end_queue, end_queue_push, pre_insert):
+    for tra_id, tra in pre_insert.items():
+        assert tra_id not in active_space
+        active_space[tra_id] = (tra.begin, tra.label)
+        end_queue_push((tra.len + tra.begin, tra_id))
+    next_end = end_queue[0][0]
+    return next_end
 
 
 def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, interval: int):
@@ -171,4 +189,4 @@ def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, i
     traj_queue = heapq.merge(*chain.from_iterable(probation), candidate_verified_queue(region, candidates, interval),
                              key=attrgetter('begin'))
     verifier = partial(yield_co_move, duration_range[0], labels)
-    sequential_search(traj_queue, verifier)
+    sequential_search(traj_queue, interval, verifier)

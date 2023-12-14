@@ -1,7 +1,9 @@
+import heapq
+
 import numpy as np
 import pandas as pd
 
-from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue, yield_co_move
+from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue, yield_co_move, sequential_search
 from utilities.box2D import Box2D
 from utilities.config import config
 from utilities.data_preprocessing import traj_data, gen_border
@@ -78,3 +80,17 @@ def test_yield_co_move():
     test_map = dict(active_space)
     res = yield_co_move(duration, labels, test_map, ts, ids)
     assert len(res) == 0
+
+
+def test_sequential_search():
+    traj1 = [(1, 0, 18), (4, 1, 12), (8, 1, 9), (9, 2, 10), (9, 1, 10),
+             (9, 1, 7), (16, 0, 3), (16, 1, 3), (19, 0, 2), (20, 0, 2), (20, 1, 5)]
+    traj2 = [(16, 1, 3), (17, 1, 3), (19, 2, 3)]
+    traj3 = [(19, 0, 4), (19, 1, 5)]
+    traj_total = heapq.merge((RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj1)),
+                             (RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj2, 1)),
+                             (RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj3, 6)))
+
+    ans = [(6, 16, 1), (8, 19, 3), (11, 20, 1), (11, 21, 6)]
+    query = list(sequential_search(traj_total, (3, 21), lambda am, end, cond: [(len(am), end, len(cond))]))
+    assert ans == query
