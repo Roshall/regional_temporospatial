@@ -206,12 +206,12 @@ def update(active_space, end_queue, end_queue_push, pre_insert):
     return next_end
 
 
-def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, interval: int):
+def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, interval):
     # FIXME: only rectangle region
-    candidates, probation = zip(*(tempo_spat_idx[label].perhaps_intersect(((region.bbox, duration_range), interval))
+    candidates, probation = zip(*(tempo_spat_idx[label].where_intersect(((region.bbox, duration_range), interval))
                                   for label in labels))
     # candidates, probation = tempo_spat_idx.perhaps_intersect(((region.bbox, duration_range), interval))
     traj_queue = heapq.merge(*chain.from_iterable(probation), candidate_verified_queue(region, candidates, interval),
                              key=attrgetter('begin'))
     verifier = partial(yield_co_move, duration_range[0], labels)
-    sequential_search(traj_queue, interval, verifier)
+    return sequential_search(traj_queue, interval, verifier)
