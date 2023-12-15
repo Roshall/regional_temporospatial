@@ -3,6 +3,7 @@ import math
 from collections import defaultdict, Counter
 from collections.abc import Iterable, MutableMapping, Callable
 from collections.abc import Mapping, Sequence
+from copy import copy
 from functools import partial
 from itertools import chain
 from operator import attrgetter
@@ -125,30 +126,46 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
         return iter([])
 
 
-def sequential_search(trajs: Iterable, interval, co_move_verifier: Callable[[MutableMapping, int, Sequence], Iterable]):
+def sequential_search(trajs: Iterable[RunTimeTrajectorySeg | NaiveTrajectorySeg],
+                      interval, co_move_verifier: Callable[[MutableMapping, int, Sequence], Iterable]):
     start, finish = interval
     active_space = {}
     pre_insert = {}
     end_queue = []
     end_queue_push = partial(heapq.heappush, end_queue)
     end_queue_pop = partial(heapq.heappop, end_queue)
+    next_end = math.inf
 
-    new_ = start
-    next_end = finish
+    for traj in trajs:  # gather trajs on the starting border
+        if traj.begin <= start:
+            end_queue_push((traj.begin + traj.len, traj.id))
+            (traj := copy(traj)).begin = start
+            active_space[traj.id] = traj
+        else:
+            pre_insert[traj.id] = traj
+            if end_queue:
+                next_end = end_queue[0][0]
+            new_ = traj.begin
+            break
+    else:  # no result
+        return iter([])
+
     id_cand = []
-
     for traj in trajs:
-        begin = max(traj.begin, start)
+        begin = traj.begin
+        # gather all traj with the same beginning time and processing them all at a time.
         if new_ == begin:
             assert traj.id not in pre_insert
             pre_insert[traj.id] = traj
         else:
             new_ = begin
             if next_end < new_:
-                while end_queue and next_end == end_queue[0][0]:
+                while end_queue and next_end == end_queue[0][0]:  # process trajs ending at this time all at once
                     _, tid = end_queue_pop()
+                    # If there is a traj ending and beginning at the same time, it passes through two regions
+                    # hence we remove this start point, and revising its end time
                     if (revising := pre_insert.pop(tid, None)) is None:
-                        id_cand.append(tid)
+                        id_cand.append(active_space[tid])
                     else:
                         end_queue_push((revising.len + revising.begin, tid))
                 # produce result
@@ -159,24 +176,31 @@ def sequential_search(trajs: Iterable, interval, co_move_verifier: Callable[[Mut
             next_end = update(active_space, end_queue, end_queue_push, pre_insert)
             pre_insert.clear()
             pre_insert[traj.id] = traj
-
-    next_end = update(active_space, end_queue, end_queue_push, pre_insert)
+    if end_queue[0][0] == next_end:
+        _, tid = end_queue_pop()
+        if (revising := pre_insert.pop(tid, None)) is None:
+            id_cand.append(active_space[tid])
+            yield from co_move_verifier(active_space, next_end, id_cand)
+        else:
+            end_queue_push((revising.len + revising.begin, tid))
+    if pre_insert:
+        update(active_space, end_queue, end_queue_push, pre_insert)
 
     while end_queue:
+        next_end = end_queue[0][0]
         if next_end >= finish:
-            yield from co_move_verifier(active_space, finish, [info[1] for info in end_queue])
+            yield from co_move_verifier(active_space, finish, [active_space[info[1]] for info in end_queue])
             break
         while end_queue and next_end == end_queue[0][0]:
-            id_cand.append(end_queue_pop()[1])
+            id_cand.append(active_space[end_queue_pop()[1]])
         yield from co_move_verifier(active_space, next_end, id_cand)
         id_cand.clear()
-        next_end = end_queue[0][0]
 
 
 def update(active_space, end_queue, end_queue_push, pre_insert):
     for tra_id, tra in pre_insert.items():
         assert tra_id not in active_space
-        active_space[tra_id] = (tra.begin, tra.label)
+        active_space[tra_id] = tra
         end_queue_push((tra.len + tra.begin, tra_id))
     next_end = end_queue[0][0]
     return next_end

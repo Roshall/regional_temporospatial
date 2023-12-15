@@ -90,6 +90,6 @@ def test_sequential_search():
                              (RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj2, 1)),
                              (RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj3, 6)))
 
-    ans = [(6, 16, 1), (8, 19, 3), (11, 20, 1), (11, 21, 6)]
+    ans = [(6, 16, 1), (8, 19, 3), (9, 20, 1), (11, 21, 6)]
     query = list(sequential_search(traj_total, (3, 21), lambda am, end, cond: [(len(am), end, len(cond))]))
     assert ans == query
