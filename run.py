@@ -160,22 +160,14 @@ def sequential_search(trajs: Iterable[RunTimeTrajectorySeg | NaiveTrajectorySeg]
         else:
             new_ = begin
             if next_end < new_:
-                while end_queue and next_end == end_queue[0][0]:  # process trajs ending at this time all at once
-                    _, tid = end_queue_pop()
-                    # If there is a traj ending and beginning at the same time, it passes through two regions
-                    # hence we remove this start point, and revising its end time
-                    if (revising := pre_insert.pop(tid, None)) is None:
-                        id_cand.append(active_space[tid])
-                    else:
-                        end_queue_push((revising.len + revising.begin, tid))
-                # produce result
-                if id_cand:
-                    yield from co_move_verifier(active_space, next_end, id_cand)
-                    id_cand.clear()
+                yield from yield_at_time(next_end, active_space, co_move_verifier, end_queue, end_queue_pop,
+                                         end_queue_push, id_cand, pre_insert)
 
             next_end = update(active_space, end_queue, end_queue_push, pre_insert)
             pre_insert.clear()
             pre_insert[traj.id] = traj
+    yield from yield_at_time(next_end, active_space, co_move_verifier, end_queue, end_queue_pop, end_queue_push, id_cand,
+                             pre_insert)
     if end_queue[0][0] == next_end:
         _, tid = end_queue_pop()
         if (revising := pre_insert.pop(tid, None)) is None:
@@ -195,6 +187,25 @@ def sequential_search(trajs: Iterable[RunTimeTrajectorySeg | NaiveTrajectorySeg]
             id_cand.append(active_space[end_queue_pop()[1]])
         yield from co_move_verifier(active_space, next_end, id_cand)
         id_cand.clear()
+
+
+def yield_at_time(next_end, active_space, co_move_verifier, end_queue, end_queue_pop, end_queue_push, id_cand,
+                  pre_insert):
+    while end_queue and next_end == end_queue[0][0]:  # process trajs ending at this time all at once
+        _, tid = end_queue_pop()
+        # If there is a traj ending and beginning at the same time, it passes through two regions
+        # hence we remove this start point, and revising its end time
+        if (revising := pre_insert.pop(tid, None)) is None:
+            id_cand.append(active_space[tid])
+        else:
+            end_queue_push((revising.len + revising.begin, tid))
+    # produce result
+    if id_cand:
+        res = co_move_verifier(active_space, next_end, id_cand)
+        id_cand.clear()
+        return res
+    else:
+        return iter([])
 
 
 def update(active_space, end_queue, end_queue_push, pre_insert):
