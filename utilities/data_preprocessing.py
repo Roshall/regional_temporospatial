@@ -33,7 +33,9 @@ def traj_data(tracks, cols_name: list, fps, label_map, scale=100):
 def gen_border(bbox, x_num, y_num):
     xmin, xmax, ymin, ymax = bbox
     x_series = np.linspace(xmin, xmax, x_num, dtype=int)
+    x_series = np.append(x_series, x_series[-1]+1)
     y_series = np.linspace(ymin, ymax, y_num, dtype=int)
+    y_series = np.append(y_series, y_series[-1]+1)
     return x_series, y_series
 
 
