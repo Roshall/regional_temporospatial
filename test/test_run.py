@@ -7,7 +7,7 @@ from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue,
 from utilities.box2D import Box2D
 from utilities.config import config
 from utilities.data_preprocessing import traj_data, gen_border
-from utilities.trajectory import NaiveTrajectorySeg, RunTimeTrajectorySeg
+from utilities.trajectory import NaiveTrajectorySeg, RunTimeTrajectorySeg, BasicTrajectorySeg
 from utilities import dataset
 
 
@@ -67,19 +67,18 @@ def test_candidate_verified_queue():
 def test_yield_co_move():
     duration = 5
     obj_info = [(1, 0), (4, 1), (8, 1), (9, 2), (10, 0), (11, 0)]
+    obj_info = [BasicTrajectorySeg(i, *info)for i, info in enumerate(obj_info)]
     active_space = dict(enumerate(obj_info))
     ts = 15
-    ids = [1, 2, 4]
+    ids = [active_space[i] for i in (1, 2, 4)]
 
-    labels = {0: 2, 1: 2, 2: 1}
-    test_map = dict(active_space)
-    res = yield_co_move(duration, labels, test_map, ts, ids)
-    assert len(res) == 3
+    label_quizzes = [{0: 2, 1: 2, 2: 1}, {0: 3, 1: 1, 2: 1}, {0: 1, 1: 1, 2: 0}]
 
-    labels = {0: 3, 1: 1, 2: 1}
-    test_map = dict(active_space)
-    res = yield_co_move(duration, labels, test_map, ts, ids)
-    assert len(res) == 0
+    ans = [1, 0, 3]
+    for labels, a in zip(label_quizzes, ans):
+        test_map = dict(active_space)
+        res = list(yield_co_move(duration, labels, test_map, ts, ids))
+        assert len(res) == a
 
 
 def test_sequential_search():

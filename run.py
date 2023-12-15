@@ -12,7 +12,7 @@ import numpy as np
 from indices import UserIdx
 from indices.region import GridRegion
 from utilities.box2D import Box2D
-from utilities.trajectory import NaiveTrajectorySeg, RunTimeTrajectorySeg
+from utilities.trajectory import NaiveTrajectorySeg, RunTimeTrajectorySeg, BasicTrajectorySeg
 
 
 def build_tempo_spatial_index(trajs):
@@ -83,45 +83,46 @@ def verify_seg(region, segment: NaiveTrajectorySeg, interval):
     return res_seg
 
 
-def yield_co_move(duration: int, labels: Mapping[int, int], active_space: MutableMapping[int, tuple[int, int]],
-                  timestamp: int, id_cand: Sequence):
+def yield_co_move(duration: int, labels: Mapping[int, int], active_space: MutableMapping[int, BasicTrajectorySeg],
+                  timestamp: int, traj_cand: Sequence):
     """
     a co-movement checker respecting objects' label and count and their co-moving duration .
+    Note that this function may modify active_space.
     :param duration: objects co-moving duration
     :param labels: {obj_label: count}
-    :param active_space: {obj_id: (begin, label)}
+    :param active_space: {obj_id: trajectory}
     :param timestamp: current processing time
-    :param id_cand: all objects need processing
-    :return: list of tuple(ids, start, end)
+    :param traj_cand: all trajectories need processing
+    :return: iterator of tuple(ids, start, end)
     """
-    end_cand = []
-    begin_cand = []
-    label_cand = []
-    for tra_id in id_cand:
-        tinfo = active_space.pop(tra_id)
-        if timestamp - tinfo[0] >= duration:
-            end_cand.append(tra_id)
-            begin_cand.append(tinfo[0])
-            label_cand.append(tinfo[1])
-
-    result_bag = Counter(label_cand)
-    ids = id_cand[:]
+    for traj in traj_cand:
+        del active_space[traj.id]
+    traj_cand = [traj for traj in traj_cand if timestamp - traj.begin >= duration]
+    traj_cand.sort(key=attrgetter('begin'), reverse=True)
+    result_bag = Counter(map(attrgetter('label'), traj_cand))
+    ids = [traj.id for traj in traj_cand]
     for traj_id, traj in active_space.items():
-        if timestamp - traj[0] < duration:
+        if timestamp - traj.begin < duration:
             break
         else:
-            result_bag[traj[1]] += 1
+            result_bag[traj.label] += 1
             ids.append(traj_id)
 
     # It's impossible for result bag to have more keys. because we filtered labels first.
     assert len(result_bag) <= len(labels)
     if len(result_bag) == len(labels):
-        for tra_id in labels:
-            if result_bag[tra_id] < labels[tra_id]:
-                return []
-        return [(ids, beg, timestamp) for beg in begin_cand]
+        for tra_label in labels:
+            if result_bag[tra_label] < labels[tra_label]:
+                return iter([])
+        for i in range(len(traj_cand)):
+            traj = traj_cand[i]
+            yield ids[i:], traj.begin, timestamp
+            label = traj.label
+            result_bag[label] -= 1
+            if result_bag[label] < labels[label]:
+                break
     else:
-        return []
+        return iter([])
 
 
 def sequential_search(trajs: Iterable, interval, co_move_verifier: Callable[[MutableMapping, int, Sequence], Iterable]):
