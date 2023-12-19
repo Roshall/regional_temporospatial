@@ -84,7 +84,7 @@ def verify_seg(region, segment: NaiveTrajectorySeg, duration):
 
 
 def yield_co_move(duration: int, labels: Mapping[int, int], active_space: MutableMapping[int, BasicTrajectorySeg],
-                  timestamp: int, traj_cand: Sequence):
+                  timestamp: int, traj_required: Sequence):
     """
     a co-movement checker respecting objects' label and count and their co-moving duration .
     Note that this function may modify active_space.
@@ -92,34 +92,33 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
     :param labels: {obj_label: count}
     :param active_space: {obj_id: trajectory}
     :param timestamp: current processing time
-    :param traj_cand: all trajectories need processing
+    :param traj_required: trajectories need processing
     :return: iterator of tuple(ids, start, end)
     """
-    for traj in traj_cand:
+    id_required = set(traj.id for traj in traj_required if timestamp - traj.begin >= duration)
+    traj_cand = [active_space[traj_id] for traj_id in takewhile(lambda x: timestamp - active_space[x].begin >= duration, active_space)]
+    traj_cand.reverse()   # start at the least duration
+    for traj in traj_required:
         del active_space[traj.id]
-    traj_cand = [traj for traj in traj_cand if timestamp - traj.begin >= duration]
-    traj_cand.sort(key=attrgetter('begin'), reverse=True)
+
     result_bag = Counter(map(attrgetter('label'), traj_cand))
     ids = [traj.id for traj in traj_cand]
-    for traj_id, traj in active_space.items():
-        if timestamp - traj.begin < duration:
-            break
-        else:
-            result_bag[traj.label] += 1
-            ids.append(traj_id)
 
     # It's impossible for result bag to have more keys. because we filtered labels first.
     assert len(result_bag) <= len(labels)
     if len(result_bag) == len(labels):
         for tra_label in labels:
             if result_bag[tra_label] < labels[tra_label]:
-                return iter([])
-        for i in range(len(traj_cand)):
+                return
+        res_pos = np.diff(np.fromiter(map(attrgetter('begin'), traj_cand), np.int32), prepend=-1).nonzero()[0]
+        timestamp -= 1  # the end point is exclusive
+        for i in res_pos:
             traj = traj_cand[i]
             yield ids[i:], traj.begin, timestamp
             label = traj.label
-            result_bag[label] -= 1
-            if result_bag[label] < labels[label]:
+            result_bag[traj.label] -= 1
+            id_required.discard(traj.id)
+            if not id_required or result_bag[label] < labels[label]:
                 break
 
 

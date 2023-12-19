@@ -41,6 +41,14 @@ class TestTempSpatialIndex:
         res = list(base_query(self.tempo_spatial, region, labels, duration, interval))
         assert len(res) == 3
 
+        region = Box2D((100, 300, 100, 400))
+        labels = {0: 2, 1: 1}
+        interval = 0, 50
+        duration = 10, 30
+
+        res = list(base_query(self.tempo_spatial, region, labels, duration, interval))
+        assert len(res) == 3
+
 
 def test_verify_seg():
     region = Box2D((11, 111, 11, 111))
