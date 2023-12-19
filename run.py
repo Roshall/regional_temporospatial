@@ -4,7 +4,7 @@ from collections.abc import Iterable, MutableMapping
 from collections.abc import Mapping, Sequence
 from copy import copy
 from functools import partial
-from itertools import chain
+from itertools import chain, takewhile
 from operator import attrgetter
 
 import numpy as np
@@ -121,99 +121,42 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
             result_bag[label] -= 1
             if result_bag[label] < labels[label]:
                 break
+
+
+def group_traj_by_time(trajectories, head=None):
+    if head is None:
+        if (head := next(trajectories, None)) is None:
+            return
+    t = head.begin
+    pre = {head.id: head}
+    for traj in trajectories:
+        if traj.begin == t:
+            pre[traj.id] = traj
+        else:
+            yield t, pre
+            t = traj.begin
+            pre = {traj.id: traj}
+    if pre:
+        yield t, pre
+
+
+def group_until(queue, ts):
+    if not queue or queue[0][0] > ts:
+        return
     else:
-        return iter([])
-
-
-def sequential_search(trajs: Iterable[RunTimeTrajectorySeg | NaiveTrajectorySeg],
-                      interval, co_move_verifier: Callable[[MutableMapping, int, Sequence], Iterable]):
-    start, finish = interval
-    active_space = {}
-    pre_insert = {}
-    end_queue = []
-    end_queue_push = partial(heapq.heappush, end_queue)
-    end_queue_pop = partial(heapq.heappop, end_queue)
-    next_end = math.inf
-
-    for traj in trajs:  # gather trajs on the starting border
-        if traj.begin <= start:
-            end_queue_push((traj.begin + traj.len, traj.id))
-            (traj := copy(traj)).begin = start
-            active_space[traj.id] = traj
-        else:
-            pre_insert[traj.id] = traj
-            if end_queue:
-                next_end = end_queue[0][0]
-            new_ = traj.begin
-            break
-    else:  # no result
-        return iter([])
-
-    id_cand = []
-    for traj in trajs:
-        begin = traj.begin
-        # gather all traj with the same beginning time and processing them all at a time.
-        if new_ == begin:
-            assert traj.id not in pre_insert
-            pre_insert[traj.id] = traj
-        else:
-            new_ = begin
-            if next_end < new_:
-                yield from yield_at_time(next_end, active_space, co_move_verifier, end_queue, end_queue_pop,
-                                         end_queue_push, id_cand, pre_insert)
-
-            next_end = update(active_space, end_queue, end_queue_push, pre_insert)
-            pre_insert.clear()
-            pre_insert[traj.id] = traj
-    yield from yield_at_time(next_end, active_space, co_move_verifier, end_queue, end_queue_pop, end_queue_push, id_cand,
-                             pre_insert)
-    if end_queue[0][0] == next_end:
-        _, tid = end_queue_pop()
-        if (revising := pre_insert.pop(tid, None)) is None:
-            id_cand.append(active_space[tid])
-            yield from co_move_verifier(active_space, next_end, id_cand)
-        else:
-            end_queue_push((revising.len + revising.begin, tid))
-    if pre_insert:
-        update(active_space, end_queue, end_queue_push, pre_insert)
-
-    while end_queue:
-        next_end = end_queue[0][0]
-        if next_end >= finish:
-            yield from co_move_verifier(active_space, finish, [active_space[info[1]] for info in end_queue])
-            break
-        while end_queue and next_end == end_queue[0][0]:
-            id_cand.append(active_space[end_queue_pop()[1]])
-        yield from co_move_verifier(active_space, next_end, id_cand)
-        id_cand.clear()
-
-
-def yield_at_time(next_end, active_space, co_move_verifier, end_queue, end_queue_pop, end_queue_push, id_cand,
-                  pre_insert):
-    while end_queue and next_end == end_queue[0][0]:  # process trajs ending at this time all at once
-        _, tid = end_queue_pop()
-        # If there is a traj ending and beginning at the same time, it passes through two regions
-        # hence we remove this start point, and revising its end time
-        if (revising := pre_insert.pop(tid, None)) is None:
-            id_cand.append(active_space[tid])
-        else:
-            end_queue_push((revising.len + revising.begin, tid))
-    # produce result
-    if id_cand:
-        res = co_move_verifier(active_space, next_end, id_cand)
-        id_cand.clear()
-        return res
-    else:
-        return iter([])
-
-
-def update(active_space, end_queue, end_queue_push, pre_insert):
-    for tra_id, tra in pre_insert.items():
-        assert tra_id not in active_space
-        active_space[tra_id] = tra
-        end_queue_push((tra.len + tra.begin, tra_id))
-    next_end = end_queue[0][0]
-    return next_end
+        t, tid = heapq.heappop(queue)
+        group = [tid]
+        while queue:
+            end = queue[0][0]
+            if end == t:
+                group.append(heapq.heappop(queue)[1])
+            else:
+                yield t, group
+                if end > ts:
+                    return
+                t = end
+                group = [heapq.heappop(queue)[1]]
+        yield t, group
 
 
 def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, interval):
@@ -224,4 +167,69 @@ def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, i
     traj_queue = heapq.merge(*chain.from_iterable(probation),
                              candidate_verified_queue(region, candidates, duration_range[0]), key=attrgetter('begin'))
     verifier = partial(yield_co_move, duration_range[0], labels)
-    return sequential_search(traj_queue, interval, verifier)
+    searcher = SequentialSearcher(interval, verifier)
+    return searcher.search(traj_queue)
+    # return sequential_search(traj_queue, interval, verifier)
+
+
+class SequentialSearcher:
+    def __init__(self, interval, verifier):
+        self.interval = interval
+        self.playground = {}
+        self.verify = partial(verifier, self.playground)
+        end_time_queue = []
+        self.etq_push = partial(heapq.heappush, end_time_queue)
+        self.etq = end_time_queue
+
+    def _yield_until(self, ts, pre_insert):
+        for t, group in group_until(self.etq, ts):
+            if t < ts:
+                yield from self.verify(t, [self.playground[tid] for tid in group])
+            elif t == ts:
+                t_candi = []
+                for tid in group:
+                    if (revising := pre_insert.pop(tid, None)) is None:
+                        t_candi.append(self.playground[tid])
+                    else:
+                        self.etq_push((revising.len + revising.begin, tid))
+                if t_candi:
+                    yield from self.verify(ts, t_candi)
+                return
+
+    def _update(self, pre_insert):
+        for tra_id, tra in pre_insert.items():
+            assert tra_id not in self.playground
+            self.playground[tra_id] = tra
+            self.etq_push((tra.len + tra.begin, tra_id))
+        return self.etq[0][0]
+
+    def _head(self, trajs):
+        start = self.interval[0]
+        for traj in trajs:  # gather trajs on the starting border
+            if traj.begin <= start:
+                self.etq_push((traj.begin + traj.len, traj.id))
+                (traj := copy(traj)).begin = start
+                self.playground[traj.id] = traj
+            else:
+                return traj
+
+    def search(self, trajs: Iterable[RunTimeTrajectorySeg | NaiveTrajectorySeg]):
+        begin, finish = self.interval
+
+        head = self._head(trajs)
+        if self.etq:
+            next_end = self.etq[0][0]
+        elif head:
+            next_end = head.begin + head.len
+        else:
+            return
+
+        if head:
+            for t, pre_insert in group_traj_by_time(trajs, head):
+                if next_end <= t:
+                    yield from self._yield_until(t, pre_insert)
+                next_end = self._update(pre_insert)
+
+        if next_end < finish:
+            yield from self._yield_until(finish - 1, {})
+        yield from self.verify(finish, [self.playground[info[1]]for info in self.etq])

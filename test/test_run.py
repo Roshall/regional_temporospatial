@@ -1,10 +1,9 @@
 import heapq
 
 import numpy as np
-import pandas as pd
 
-from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue, yield_co_move, sequential_search, \
-    base_query
+from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue, yield_co_move, \
+    base_query, SequentialSearcher
 from utilities.box2D import Box2D
 from utilities.config import config
 from utilities.data_preprocessing import traj_data, gen_border
@@ -36,10 +35,10 @@ class TestTempSpatialIndex:
     def test_base_query(self):
         interval = 0, 10
         duration = 2, 30
-        lables = {0: 1}
+        labels = {0: 1}
         region = Box2D((0, 400, 0, 500))
 
-        res = list(base_query(self.tempo_spatial, region, lables, duration, interval))
+        res = list(base_query(self.tempo_spatial, region, labels, duration, interval))
         assert len(res) == 3
 
 
@@ -101,5 +100,6 @@ def test_sequential_search():
                              (RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj3, 6)))
 
     ans = [(6, 16, 1), (8, 19, 3), (9, 20, 1), (11, 21, 6)]
-    query = list(sequential_search(traj_total, (3, 21), lambda am, end, cond: [(len(am), end, len(cond))]))
+    searcher = SequentialSearcher((3, 21), lambda am, end, cond: [(len(am), end, len(cond))])
+    query = list(searcher.search(traj_total))
     assert ans == query
