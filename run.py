@@ -1,7 +1,6 @@
 import heapq
-import math
 from collections import defaultdict, Counter
-from collections.abc import Iterable, MutableMapping, Callable
+from collections.abc import Iterable, MutableMapping
 from collections.abc import Mapping, Sequence
 from copy import copy
 from functools import partial
@@ -52,18 +51,18 @@ def build_tempo_spatial_index(trajs):
     return user_idx
 
 
-def candidate_verified_queue(region, candidates, interval, buffer_size: int = 1024):
+def candidate_verified_queue(region, candidates, duration, buffer_size: int = 1024):
     cand_queue = heapq.merge(*chain.from_iterable(candidates))
     verified_heap = []
     # build queue
     for cand_seg in cand_queue:
-        verified_heap.extend(verify_seg(region, cand_seg, interval))
+        verified_heap.extend(verify_seg(region, cand_seg, duration))
         if len(verified_heap) >= buffer_size:
             break
     heapq.heapify(verified_heap)
 
     for cand_seg in cand_queue:
-        verified_seg = verify_seg(region, cand_seg, interval)
+        verified_seg = verify_seg(region, cand_seg, duration)
         for seg in verified_seg:
             yield heapq.heapreplace(verified_heap, seg)
 
@@ -71,13 +70,13 @@ def candidate_verified_queue(region, candidates, interval, buffer_size: int = 10
         yield heapq.heappop(verified_heap)
 
 
-def verify_seg(region, segment: NaiveTrajectorySeg, interval):
+def verify_seg(region, segment: NaiveTrajectorySeg, duration):
     mask = region.enclose(segment.points)
     break_pos = np.append(-1, np.where(mask == False))
     seg_lens = np.diff(break_pos, append=len(mask)) - 1
     # if the seg is cut into pieces, each is treated separately
     seg_lens_mid = seg_lens[1:-1]
-    seg_lens_mid[seg_lens_mid < interval] = 0
+    seg_lens_mid[seg_lens_mid < duration] = 0
 
     res_seg = [RunTimeTrajectorySeg(segment.id, segment.begin + pos + 1, segment.label, len_)
                for pos, len_ in zip(break_pos, seg_lens) if len_ > 0]
@@ -222,7 +221,7 @@ def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, i
     candidates, probation = zip(*(tempo_spat_idx[label].where_intersect(((region.bbox, duration_range), interval))
                                   for label in labels))
     # candidates, probation = tempo_spat_idx.perhaps_intersect(((region.bbox, duration_range), interval))
-    traj_queue = heapq.merge(*chain.from_iterable(probation), candidate_verified_queue(region, candidates, interval),
-                             key=attrgetter('begin'))
+    traj_queue = heapq.merge(*chain.from_iterable(probation),
+                             candidate_verified_queue(region, candidates, duration_range[0]), key=attrgetter('begin'))
     verifier = partial(yield_co_move, duration_range[0], labels)
     return sequential_search(traj_queue, interval, verifier)
