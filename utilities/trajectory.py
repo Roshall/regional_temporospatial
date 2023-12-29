@@ -4,7 +4,6 @@ from typing import Sequence
 
 TrajTrack = namedtuple('TrajTrace', 'tId clsId start_frame track')
 RawTraj = namedtuple('RawTraj', 'fps life_long bbox traj_track')
-Traj_Meta = namedtuple('meta_key', 'duration loc')
 
 
 class Trajectory:

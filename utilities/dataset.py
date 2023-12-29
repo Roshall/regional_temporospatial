@@ -18,7 +18,7 @@ def load_rounD(path, track_id):
 
 def load_fake():
     import os
-    file_name = os.path.join(os.path.dirname(__file__), '../resource/fake_tracks.csv')
+    file_name = os.path.join(os.path.dirname(__file__), '/home/lg/VDBM/spatiotemporal/resource/dataset/fake_tracks.csv')
     data = pd.read_csv(file_name)
     cls = [0, 0, 0, 1, 1]
     cls_map = dict(enumerate(cls, 1))
