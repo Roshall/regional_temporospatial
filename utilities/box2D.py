@@ -45,7 +45,7 @@ class Box2D:
         :param points: 2d points, iterable
         :return: boolean array
         """
-        test_vectors = np.asarray(points) - self._test_meta[-1]  # BP
+        test_vectors = points - self._test_meta[-1]  # BP
         stats = test_vectors @ self._test_meta[:2]  # [BP@BA.T, BP@BC.T]
         mask1 = stats >= 0
         mask2 = stats <= self._test_meta[2]  # [BP@BA < BA@BA, BP@BC < BC@BC]
