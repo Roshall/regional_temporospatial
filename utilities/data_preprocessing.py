@@ -25,7 +25,7 @@ def traj_data(tracks, cols_name: list, fps, label_map, scale=100):
     for tid, t in traces_by_id:
         cls_id = label_map[tid]
         start_frame = t[cols_name[1]].iat[0]
-        trajs = (t[cols_name[-2:]].to_numpy() * scale).astype(np.int32)
+        trajs = (t[cols_name[-2:]][::fps].to_numpy() * scale).astype(np.int32)
         traj_ls.append(TrajTrack(tid, cls_id,  start_frame, trajs))
     return RawTraj(fps, lifelong, bbox, traj_ls)
 
@@ -51,11 +51,15 @@ def draw_traj_point_in_grid(data, reg_borders):
     plt.show()
 
 
+def group_by_frame(df):
+    return data.sort_values(by='fid').groupby('fid')  # in case that groups are not sorted by fid
+
+
 if __name__ == '__main__':
-    import dataset
+    from utilities import dataset
     import os
 
-    file_path = os.path.join(os.path.dirname(__file__), '../resource')
+    file_path = '/home/lg/VDBM/spatiotemporal/resource/dataset'
     fps = 25
     cls_map, data = dataset.load_rounD(file_path, '00')
     cols = ['trackId', 'frame', 'xCenter', 'yCenter']
