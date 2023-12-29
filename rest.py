@@ -51,7 +51,7 @@ def build_tempo_spatial_index(trajs):
     return user_idx
 
 
-def candidate_verified_queue(region, candidates, duration, buffer_size: int = 1024):
+def candidate_verified_queue(region, candidates, duration, buffer_size: int = 64):
     cand_queue = heapq.merge(*chain.from_iterable(candidates))
     verified_heap = []
     # build queue
