@@ -2,7 +2,7 @@ import heapq
 
 import numpy as np
 
-from run import build_tempo_spatial_index, verify_seg, candidate_verified_queue, yield_co_move, \
+from rest import build_tempo_spatial_index, verify_seg, candidate_verified_queue, yield_co_move, \
     base_query, SequentialSearcher
 from utilities.box2D import Box2D
 from utilities.config import config
@@ -12,8 +12,8 @@ from utilities import dataset
 
 
 class TestTempSpatialIndex:
-    cls_map, data = dataset.load_fake()
-    trajs = traj_data(data, ['tid', 'frameId', 'x', 'y'], 1, cls_map)
+    data, cols, cls_map, = dataset.load_fake()
+    trajs = traj_data(data, cols, 1, cls_map)
     broders = gen_border(trajs.bbox, 5, 6)
     config.gird_border = broders
     tempo_spatial = build_tempo_spatial_index(trajs)

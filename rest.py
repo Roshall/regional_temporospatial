@@ -168,7 +168,6 @@ def base_query(tempo_spat_idx, region: Box2D, labels: Mapping, duration_range, i
     verifier = partial(yield_co_move, duration_range[0], labels)
     searcher = SequentialSearcher(interval, verifier)
     return searcher.search(traj_queue)
-    # return sequential_search(traj_queue, interval, verifier)
 
 
 class SequentialSearcher:
