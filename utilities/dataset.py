@@ -1,3 +1,4 @@
+import pickle
 from zipfile import ZipFile
 
 import pandas as pd
@@ -20,6 +21,12 @@ def load_fake():
     import os
     file_name = os.path.join(os.path.dirname(__file__), '/home/lg/VDBM/spatiotemporal/resource/dataset/fake_tracks.csv')
     data = pd.read_csv(file_name)
-    cls = [0, 0, 0, 1, 1]
-    cls_map = dict(enumerate(cls, 1))
-    return cls_map, data
+    columns = ['oid', 'fid', 'x', 'y']
+    return data, columns, data[['oid', 'cls']].drop_duplicates('oid').set_index('oid')['cls']
+
+
+def load_yolo_for(filename):
+    columns = ['oid', 'fid', 'x', 'y']
+    with open(filename, 'rb') as f:
+        data = pickle.load(f)
+    return data, columns, data[['oid', 'cls']].drop_duplicates('oid').set_index('oid')['cls']
