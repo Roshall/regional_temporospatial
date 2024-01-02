@@ -2,6 +2,8 @@ from collections import deque
 from collections.abc import Iterable
 from itertools import islice
 
+from baseline.co_moving import CoMovementPattern
+
 
 def sliding_window(df, win_len):
     df_iter = iter(df)
@@ -28,32 +30,52 @@ def len_filter(num_m, length):
     return [obj for obj in num_m if num_m[obj] >= length]
 
 
-def expend(sliding_result, obj_varifier):
-    if (first := next(sliding_result, None)) is None:
-        return
-    win_len = sliding_result.win_len
-    start, num_m = first
-    length = win_len
-    for low, principle in sliding_result:
-        new_pattern = num_m & principle
-        if obj_varifier(new_pattern):
-            flag1, flag2 = new_pattern == num_m, new_pattern == principle
-            if flag1 or flag2:
-                if not flag2:
-                    yield low, win_len, tuple(principle)
-                elif not flag1:
-                    yield start, length, tuple(num_m)
+def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
+    # $prev stores seen patterns. Every pattern is a set of objs that co-moves a certain period
+    # Note that prev[0] ⊃ prev[1] ⊃ prev[2] ⊃ ...
+    prev = []
+    for cur in sliding_result:
+        new = []
+        count = 0
+        prev_end = prev[0].interval[1] if prev else None
+        end = cur.interval[1]
+        absort = True
+        for pat in prev:
+            new_pattern = pat & cur
+            if len(new_pattern) == len(pat):  # pat is a subset of cur
+                if len(new_pattern) == len(cur):  # pat equals to cur
+                    new.append(pat.update_end(end))
+                    count += 1
+                else:
+                    new.append(cur)
+                break
 
-                length += win_len
+            if len(new_pattern) == len(cur):  # cur is a proper subset of pat
+                new.append(pat.update_end(end))
+                count += 1
+                continue
+
+            if obj_varifier(new_pattern.label_count()):
+                new_pattern.interval = [pat.interval[0], end]
+                yield pat.update_end(prev_end)
+                new.append(cur)
+                cur = new_pattern
+                count += 1
             else:
-                yield start, length, tuple(num_m),
-                yield low, win_len, tuple(principle),
-                start, length = low, win_len
-
-            num_m = new_pattern
+                new.append(cur)
+                absort = False
+                break
         else:
-            yield start, start + len, tuple(num_m),
-            start, length, num_m = low, win_len, principle
+            new.append(cur)
 
-    if start == first[0] and length == win_len:  # sliding_result only contains one element.
-        yield start, length, tuple(num_m)
+        if absort:
+            new.extend(islice(prev, count, None))
+        else:
+            for pat in islice(prev, count, None):
+                yield pat.update_end(prev_end)
+        prev = new
+
+    if prev:
+        end = prev[0].interval[1]
+        for pat in prev:
+            yield pat.update_end(end)
