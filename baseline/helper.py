@@ -1,14 +1,16 @@
 from collections import deque
+from collections.abc import Iterable
 from itertools import islice
 
 
 def sliding_window(df, win_len):
-    window = deque(islice(df, win_len), maxlen=win_len)
+    df_iter = iter(df)
+    window = deque(islice(df_iter, win_len), maxlen=win_len)
     if not window:
         return
     else:
         yield window
-    for frame in df:
+    for frame in df_iter:
         window.append(frame)
         yield window
 
