@@ -51,8 +51,45 @@ def draw_traj_point_in_grid(data, reg_borders):
     plt.show()
 
 
-def group_by_frame(df):
-    return data.sort_values(by='fid').groupby('fid')  # in case that groups are not sorted by fid
+def group_by_frame(df, interval):
+    df = df.sort_values(by='fid')  # in case that groups are not sorted by fid
+    df = df.query(f'{interval[0]} <= fid <= {interval[1]}')
+    return df.groupby('fid')
+
+
+def traj_interp(yolo_out_file_name, out_path, center=False):
+    import pandas as pd
+
+    np_arr = np.load(yolo_out_file_name)
+
+    np_arr[:, 3] += np_arr[:, 5]
+    np_arr[:, 3] /= 2
+    if center:
+        np_arr[:, 6] += np_arr[:, 4]
+        np_arr[:, 6] /= 2
+
+    header = ['oid', 'cls', 'fid', 'x', 'y']
+    df = pd.DataFrame(np_arr[:, [0, 1, 2, 3, 6]], columns=header)
+
+    df = df.sort_values('oid')
+    # group by objects
+    np_arr = df.to_numpy()
+    diff = np.diff(np_arr[:, 0], prepend=np_arr[0, 0]).nonzero()[0]
+    group_by_id = np.split(np_arr, diff)
+    interp_ls = []
+    for group in group_by_id:
+        df_interp = pd.DataFrame(group, columns=header)
+        min_, max_, mode = df_interp['fid'].min(), df_interp['fid'].max(), df_interp['cls'].mode()[0]
+        df_interp['cls'] = mode  # revise class id
+        df_interp = df_interp.set_index('fid').reindex(np.arange(int(min_), int(max_) + 1))
+        if df_interp['x'].isna().values.any():  # interpolate
+            df_interp.interpolate(inplace=True)
+        interp_ls.append(df_interp.reset_index())
+    df = pd.concat(interp_ls, ignore_index=True, copy=False)
+    df = df.astype({'oid': np.int32, 'cls': np.int16, 'x': np.int32, 'y': np.int32})
+    # save to pickle
+    base = os.path.basename(yolo_out_file_name).split('.')
+    df.to_pickle(f'{out_path}/{base[0]}.pkl')
 
 
 if __name__ == '__main__':
