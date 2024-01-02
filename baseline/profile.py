@@ -1,26 +1,27 @@
-from functools import partial
+from time import perf_counter as now
 
-import pandas as pd
-
-from naive import NaiveSliding
+from baseline.search_methods import naive_sliding
 import helper as f
 from utilities.box2D import Box2D
-
-
-def data_by_frame(filename):
-    data = pd.read_pickle(filename)
-    return data.sort_values(by='fid').groupby('fid')  # in case that groups are not sorted by fid
-
+from utilities.data_preprocessing import group_by_frame
+from utilities.dataset import load_yolo_for
 
 if __name__ == '__main__':
-    data_path = '/home/lg/VDBM/spatiotemporal/resource/dataset/archeday_0410_s.pkl'
-    frames = data_by_frame(data_path)
-    region = Box2D((0, 3800, 0, 2100))
-    labels = {0: 1}
-    duration = 2
-    obj_verifier = partial(f.obj_verify, labels)
+    file_name = '/home/lg/VDBM/spatiotemporal/resource/dataset/traj_taipei_0412.pkl'
+    data, _, _, = load_yolo_for(file_name)
 
-    sliding = NaiveSliding(duration, region.enclose, obj_verifier, f.len_verify, tuple(labels))
-    res = f.expend(sliding, obj_verifier)
+    label = {0: 1}
+    interval = 0, 10*60*30
+    duration = 3, 100
+    region = Box2D((546, 727, 427, 569))
+    frames = group_by_frame(data, interval)
+
+    count = 0
+    start = now()
+    windows = f.sliding_window(frames, duration[0])
+    for i in naive_sliding(windows, region, label, duration[0]):
+        count += 1
+    end = now()
+    print('result count:', count, 'using', end - start, 's.')
 
 
