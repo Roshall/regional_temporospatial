@@ -24,11 +24,8 @@ def obj_verify(target, label_map):
     return True
 
 
-def len_verify(num_m, length):
-    for obj in num_m:
-        if num_m[obj] < length:
-            return False
-    return True
+def len_filter(num_m, length):
+    return [obj for obj in num_m if num_m[obj] >= length]
 
 
 def expend(sliding_result, obj_varifier):
