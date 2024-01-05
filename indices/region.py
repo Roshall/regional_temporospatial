@@ -21,14 +21,14 @@ class GridRegion(Index):
         return tuple(
             reversed([bisect_right(dim_grid, dim_point) - 1 for dim_grid, dim_point in zip(self.terr_marker, loc)]))
 
-    def _inclose(self, loc):
+    def _enclose(self, loc):
         for dim_grid, dim_point in zip(self.borders, loc):
             if dim_point < dim_grid[0] or dim_point > dim_grid[-1]:
                 return False
         return True
 
     def where_contain(self, loc):
-        if not self._inclose(loc):
+        if not self._enclose(loc):
             return
         return self.territory[self._point2idx(loc)]
 
