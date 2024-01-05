@@ -7,7 +7,7 @@ from rest import build_tempo_spatial_index, verify_seg, candidate_verified_queue
 from utilities.box2D import Box2D
 from utilities.config import config
 from utilities.data_preprocessing import traj_data, gen_border
-from utilities.trajectory import NaiveTrajectorySeg, RunTimeTrajectorySeg, BasicTrajectorySeg
+from utilities.trajectory import TrajectorySequenceSeg, TrajectoryIntervalSeg, BasicTrajectorySeg
 from utilities import dataset
 
 
@@ -23,10 +23,10 @@ class TestTempSpatialIndex:
         for can in cands:
             for entry in can:
                 match entry:
-                    case NaiveTrajectorySeg(2, _, 0, seg):
+                    case TrajectorySequenceSeg(2, _, 0, seg):
                         ans = np.array([[0, 20], [20, 30], [60, 50], [90, 78]])
                         assert (seg == ans).all()
-                    case NaiveTrajectorySeg(1, _, 0, seg):
+                    case TrajectorySequenceSeg(1, _, 0, seg):
                         ans = np.array([[0, 0], [20, 10], [50, 13], [70, 40]])
                         assert (seg == ans).all()
                     case _:
@@ -55,15 +55,15 @@ def test_verify_seg():
     # start and end are out
     points1 = np.array([[10, 67], [13, 83], [19, 92], [23, 113], [41, 121], [59, 102], [81, 83], [113, 75], [101, 49],
                         [54, 19], [31, 7], [27, 27], [19, 45], [13, 51], [9, 55]])
-    seg1 = NaiveTrajectorySeg(1, 0, 0, points1)
+    seg1 = TrajectorySequenceSeg(1, 0, 0, points1)
     res = verify_seg(region, seg1, 3)
     assert len(res) == 1
-    assert res == [RunTimeTrajectorySeg(1, 11, 0, 3)]
+    assert res == [TrajectoryIntervalSeg(1, 11, 0, 3)]
     res = verify_seg(region, seg1, 2)
     assert len(res) == 4
     assert [seg.begin for seg in res] == [1, 5, 8, 11]
 
-    seg2 = NaiveTrajectorySeg(1, 0, 0, points1[1:-1])
+    seg2 = TrajectorySequenceSeg(1, 0, 0, points1[1:-1])
     res = verify_seg(region, seg2, 3)
     assert len(res) == 2
     assert [(seg.begin, seg.len) for seg in res] == [(0, 2), (10, 3)]
@@ -73,11 +73,11 @@ def test_candidate_verified_queue():
     x = np.linspace(0, np.pi, 100)
     Y = [np.cos(x * 20) * 10, np.sin((x + np.pi / 4) * 20) * 10]
     all_points = [np.vsplit(np.vstack((x, y)).T, 10) for y in Y]
-    cand = [[[NaiveTrajectorySeg(i, j * 10, 0, obj_ps) for j, obj_ps in enumerate(ind)] for i, ind in
+    cand = [[[TrajectorySequenceSeg(i, j * 10, 0, obj_ps) for j, obj_ps in enumerate(ind)] for i, ind in
              enumerate(all_points)]]
 
     region = Box2D((0, 1.5 * np.pi, 0, 10))
-    data = list(candidate_verified_queue(region, cand, 5, 10))
+    data = list(candidate_verified_queue(region, cand, 5))
     assert len(list(data)) == 30
 
 
@@ -103,9 +103,9 @@ def test_sequential_search():
              (9, 1, 7), (16, 0, 3), (16, 1, 3), (19, 0, 2), (20, 0, 2), (20, 1, 5)]
     traj2 = [(16, 1, 3), (17, 1, 3), (19, 2, 3)]
     traj3 = [(19, 0, 4), (19, 1, 5)]
-    traj_total = heapq.merge((RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj1)),
-                             (RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj2, 1)),
-                             (RunTimeTrajectorySeg(tid, *info) for tid, info in enumerate(traj3, 6)))
+    traj_total = heapq.merge((TrajectoryIntervalSeg(tid, *info) for tid, info in enumerate(traj1)),
+                             (TrajectoryIntervalSeg(tid, *info) for tid, info in enumerate(traj2, 1)),
+                             (TrajectoryIntervalSeg(tid, *info) for tid, info in enumerate(traj3, 6)))
 
     ans = [(6, 16, 1), (8, 19, 3), (9, 20, 1), (11, 21, 6)]
     searcher = SequentialSearcher((3, 21), lambda am, end, cond: [(len(am), end, len(cond))])

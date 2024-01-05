@@ -12,7 +12,7 @@ import numpy as np
 from indices import UserIdx
 from indices.region import GridRegion
 from utilities.box2D import Box2D
-from utilities.trajectory import NaiveTrajectorySeg, RunTimeTrajectorySeg, BasicTrajectorySeg
+from utilities.trajectory import TrajectorySequenceSeg, TrajectoryIntervalSeg, BasicTrajectorySeg
 
 
 def build_tempo_spatial_index(trajs):
@@ -40,14 +40,14 @@ def build_tempo_spatial_index(trajs):
                 # 2. insert to index
                 ts_beg = start + beg
                 user_idx[label].add(((track[start], track_life), (end - start, ts_beg)),
-                                    NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
+                                    TrajectorySequenceSeg(tid, ts_beg, label, track[start:end]))
                 start = end
                 first_reg = last_reg
             end += 1
 
         ts_beg = start + beg
         user_idx[label].add(((track[start], track_life), (end - start, ts_beg)),
-                            NaiveTrajectorySeg(tid, ts_beg, label, track[start:end]))
+                            TrajectorySequenceSeg(tid, ts_beg, label, track[start:end]))
     return user_idx
 
 
@@ -70,7 +70,7 @@ def candidate_verified_queue(region, candidates, duration, buffer_size: int = 64
         yield heapq.heappop(verified_heap)
 
 
-def verify_seg(region, segment: NaiveTrajectorySeg, duration):
+def verify_seg(region, segment: TrajectorySequenceSeg, duration):
     mask = region.enclose(segment.points)
     break_pos = np.append(-1, np.where(mask == False))
     seg_lens = np.diff(break_pos, append=len(mask)) - 1
@@ -78,9 +78,8 @@ def verify_seg(region, segment: NaiveTrajectorySeg, duration):
     seg_lens_mid = seg_lens[1:-1]
     seg_lens_mid[seg_lens_mid < duration] = 0
 
-    res_seg = [RunTimeTrajectorySeg(segment.id, segment.begin + pos + 1, segment.label, len_)
-               for pos, len_ in zip(break_pos, seg_lens) if len_ > 0]
-    return res_seg
+    return [TrajectoryIntervalSeg(segment.id, segment.begin + pos + 1, segment.label, len_)
+            for pos, len_ in zip(break_pos, seg_lens) if len_ > 0]
 
 
 def yield_co_move(duration: int, labels: Mapping[int, int], active_space: MutableMapping[int, BasicTrajectorySeg],
@@ -96,8 +95,9 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
     :return: iterator of tuple(ids, start, end)
     """
     id_required = set(traj.id for traj in traj_required if timestamp - traj.begin >= duration)
-    traj_cand = [active_space[traj_id] for traj_id in takewhile(lambda x: timestamp - active_space[x].begin >= duration, active_space)]
-    traj_cand.reverse()   # start at the least duration
+    traj_cand = [active_space[traj_id] for traj_id in
+                 takewhile(lambda x: timestamp - active_space[x].begin >= duration, active_space)]
+    traj_cand.reverse()  # start at the least duration
     for traj in traj_required:
         del active_space[traj.id]
 
@@ -110,7 +110,8 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
         for tra_label in labels:
             if result_bag[tra_label] < labels[tra_label]:
                 return
-        res_pos = np.diff(np.fromiter(map(attrgetter('begin'), traj_cand), np.int32), prepend=-1).nonzero()[0]
+        res_pos = np.diff(np.fromiter(map(attrgetter('begin'), traj_cand),
+                                      np.int32, len(traj_cand)), prepend=-1).nonzero()[0]
         timestamp -= 1  # the end point is exclusive
         for i in res_pos:
             traj = traj_cand[i]
@@ -211,7 +212,7 @@ class SequentialSearcher:
             else:
                 return traj
 
-    def search(self, trajs: Iterable[RunTimeTrajectorySeg | NaiveTrajectorySeg]):
+    def search(self, trajs: Iterable[TrajectoryIntervalSeg | TrajectorySequenceSeg]):
         begin, finish = self.interval
 
         head = self._head(trajs)
@@ -230,4 +231,4 @@ class SequentialSearcher:
 
         if next_end < finish:
             yield from self._yield_until(finish - 1, {})
-        yield from self.verify(finish, [self.playground[info[1]]for info in self.etq])
+        yield from self.verify(finish, [self.playground[info[1]] for info in self.etq])
