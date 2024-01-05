@@ -1,10 +1,11 @@
 import heapq
+from bisect import bisect_right
 from collections import defaultdict, Counter
 from collections.abc import Iterable, MutableMapping
 from collections.abc import Mapping, Sequence
 from copy import copy
 from functools import partial
-from itertools import chain, takewhile
+from itertools import chain, takewhile, islice
 from operator import attrgetter
 
 import numpy as np
@@ -51,23 +52,21 @@ def build_tempo_spatial_index(trajs):
     return user_idx
 
 
-def candidate_verified_queue(region, candidates, duration, buffer_size: int = 64):
-    cand_queue = heapq.merge(*chain.from_iterable(candidates))
-    verified_heap = []
-    # build queue
+def candidate_verified_queue(region, candidates, duration):
+    cand_queue = iter(heapq.merge(*chain.from_iterable(candidates)))
+    if (first := next(cand_queue, None)) is None:
+        return
+    verified = verify_seg(region, first, duration)
     for cand_seg in cand_queue:
-        verified_heap.extend(verify_seg(region, cand_seg, duration))
-        if len(verified_heap) >= buffer_size:
-            break
-    heapq.heapify(verified_heap)
-
-    for cand_seg in cand_queue:
-        verified_seg = verify_seg(region, cand_seg, duration)
-        for seg in verified_seg:
-            yield heapq.heapreplace(verified_heap, seg)
-
-    while verified_heap:
-        yield heapq.heappop(verified_heap)
+        segs = verify_seg(region, cand_seg, duration)
+        if segs:
+            pos = bisect_right(verified, segs[0])
+            yield from islice(verified, pos)
+            if pos != len(verified):
+                segs.extend(islice(verified, pos, None))
+                segs.sort()
+            verified = segs
+    yield from verified
 
 
 def verify_seg(region, segment: TrajectorySequenceSeg, duration):
@@ -75,8 +74,9 @@ def verify_seg(region, segment: TrajectorySequenceSeg, duration):
     break_pos = np.append(-1, np.where(mask == False))
     seg_lens = np.diff(break_pos, append=len(mask)) - 1
     # if the seg is cut into pieces, each is treated separately
-    seg_lens_mid = seg_lens[1:-1]
-    seg_lens_mid[seg_lens_mid < duration] = 0
+    if len(break_pos) > 1:
+        seg_lens_mid = seg_lens[1:-1]
+        seg_lens_mid[seg_lens_mid < duration] = 0
 
     return [TrajectoryIntervalSeg(segment.id, segment.begin + pos + 1, segment.label, len_)
             for pos, len_ in zip(break_pos, seg_lens) if len_ > 0]
