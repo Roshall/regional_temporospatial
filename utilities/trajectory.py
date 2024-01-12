@@ -7,14 +7,11 @@ RawTraj = namedtuple('RawTraj', 'fps life_long bbox traj_track')
 Traj_Meta = namedtuple('meta_key', 'duration loc')
 
 
+@dataclass(slots=True)
 class Trajectory:
-    def __init__(self, traj_point):
-        self.points = traj_point
-        self.segment_map = None
-
-    def segment(self, region_id):
-        assert self.segment_map is not None
-        return self.segment_map.where_contain(region_id, None)
+    id: int
+    label: int
+    seg: list[int]
 
 
 @dataclass(slots=True)
