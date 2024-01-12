@@ -2,7 +2,7 @@ from collections import deque
 from collections.abc import Iterable
 from itertools import islice
 
-from baseline.co_moving import CoMovementPattern
+from search.baseline.co_moving import CoMovementPattern
 
 
 def sliding_window(df, win_len):

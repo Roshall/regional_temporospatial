@@ -1,7 +1,7 @@
 from collections import Counter
 from functools import partial
 
-from baseline.co_moving import CoMovementPattern
+from search.baseline.co_moving import CoMovementPattern
 
 
 class NaiveSliding:

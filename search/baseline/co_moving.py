@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class CoMovementPattern:
-    labels: Mapping
+    labels: Mapping  # dict of id -> label
     interval: MutableSequence = None
 
     @property

@@ -1,8 +1,8 @@
 from functools import partial
 
-from baseline.co_moving import CoMovementPattern
-from baseline.helper import obj_verify, len_filter, expend, sliding_window
-from baseline.naive import NaiveSliding
+from search.baseline.co_moving import CoMovementPattern
+from search.baseline.helper import obj_verify, len_filter, expend, sliding_window
+from search.baseline.naive import NaiveSliding
 from utilities.box2D import Box2D
 from utilities.data_preprocessing import group_by_frame
 from utilities.dataset import load_fake
