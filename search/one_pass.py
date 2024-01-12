@@ -5,7 +5,8 @@ from functools import partial
 from itertools import chain, groupby
 from operator import attrgetter
 
-from search.rest import candidate_verified_queue, yield_co_move, group_until
+from search.rest import yield_co_move, group_until
+from search.verifier import candidate_verified_queue
 from utilities.box2D import Box2D
 from utilities.trajectory import TrajectoryIntervalSeg, TrajectorySequenceSeg
 

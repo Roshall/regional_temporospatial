@@ -3,7 +3,8 @@ import heapq
 import numpy as np
 
 from indices.builder import build_tempo_spatial_index
-from search.rest import verify_seg, candidate_verified_queue, yield_co_move
+from search.rest import yield_co_move
+from search.verifier import candidate_verified_queue, verify_seg
 from search.one_pass import one_pass_search, SequentialSearcher
 from utilities.box2D import Box2D
 from utilities.config import config

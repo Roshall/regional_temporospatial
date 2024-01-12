@@ -1,59 +1,14 @@
 import heapq
-from bisect import bisect_right
-from collections import Counter
+from collections import Counter, deque
 from collections.abc import Iterable, MutableMapping
 from collections.abc import Mapping, Sequence
 from itertools import takewhile, islice
 from operator import attrgetter
-from typing import Iterator
 
 import numpy as np
 
-from utilities.box2D import Box2D
-from utilities.trajectory import TrajectorySequenceSeg, TrajectoryIntervalSeg, BasicTrajectorySeg
-
-
-def candidate_verified_queue(candidates: Iterable, region: Box2D, duration: int) -> Iterator[TrajectoryIntervalSeg]:
-    """
-    verify trajectories and find the segments within region
-    :param region: a box object with `enclose` function implemented
-    :param candidates: trajectories source
-    :param duration: the least lifetime of a segment
-    :return: trajectory segments within region, which are guaranteed to be sorted by `begin` if `candidates` is sorted.
-    """
-    cand_queue = iter(candidates)
-    if (first := next(cand_queue, None)) is None:
-        return
-    verified = verify_seg(first, region, duration)
-    for cand_seg in cand_queue:
-        segs = verify_seg(cand_seg, region, duration)
-        if segs:
-            pos = bisect_right(verified, segs[0])
-            yield from islice(verified, pos)
-            if pos != len(verified):
-                segs.extend(islice(verified, pos, None))
-                segs.sort()
-            verified = segs
-    yield from verified
-
-
-def verify_seg(segment: TrajectorySequenceSeg, region: Box2D, duration: int) -> list[TrajectoryIntervalSeg]:
-    """
-    verify a trajectory segment, and find parts within region
-    :param segment: trajectory sequence segment.
-    :param region: a box object with `enclose` function implemented
-    :param duration: the least lifetime of a segment
-    :return: sorted parts of the segment by `begin`
-    """
-    mask = region.enclose(segment.points)
-    break_pos = np.append(-1, np.where(mask == False))
-    seg_lens = np.diff(break_pos, append=len(mask)) - 1
-    if len(break_pos) > 1:  # if the seg is cut into pieces, each is treated separately
-        seg_lens_mid = seg_lens[1:-1]
-        seg_lens_mid[seg_lens_mid < duration] = 0
-
-    return [TrajectoryIntervalSeg(segment.id, segment.begin + pos + 1, segment.label, len_)
-            for pos, len_ in zip(break_pos, seg_lens) if len_ > 0]
+from search.co_moving import CoMovementPattern
+from utilities.trajectory import BasicTrajectorySeg
 
 
 def yield_co_move(duration: int, labels: Mapping[int, int], active_space: MutableMapping[int, BasicTrajectorySeg],
@@ -114,3 +69,66 @@ def group_until(queue, ts):
                 t = end
                 group = [heapq.heappop(queue)[1]]
         yield t, group
+
+
+def sliding_window(df, win_len):
+    df_iter = iter(df)
+    window = deque(islice(df_iter, win_len), maxlen=win_len)
+    if not window:
+        return
+    else:
+        yield window
+    for frame in df_iter:
+        window.append(frame)
+        yield window
+
+
+def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
+    # $prev stores seen patterns. Every pattern is a set of objs that co-moves a certain period
+    # Note that prev[0] ⊃ prev[1] ⊃ prev[2] ⊃ ...
+    prev = []
+    for cur in sliding_result:
+        new = []
+        count = 0
+        prev_end = prev[0].interval[1] if prev else None
+        end = cur.interval[1]
+        absort = True
+        for pat in prev:
+            new_pattern = pat & cur
+            if len(new_pattern) == len(pat):  # pat is a subset of cur
+                if len(new_pattern) == len(cur):  # pat equals to cur
+                    new.append(pat.update_end(end))
+                    count += 1
+                else:
+                    new.append(cur)
+                break
+
+            if len(new_pattern) == len(cur):  # cur is a proper subset of pat
+                new.append(pat.update_end(end))
+                count += 1
+                continue
+
+            if obj_varifier(new_pattern.label_count()):
+                new_pattern.interval = [pat.interval[0], end]
+                yield pat.update_end(prev_end)
+                new.append(cur)
+                cur = new_pattern
+                count += 1
+            else:
+                new.append(cur)
+                absort = False
+                break
+        else:
+            new.append(cur)
+
+        if absort:
+            new.extend(islice(prev, count, None))
+        else:
+            for pat in islice(prev, count, None):
+                yield pat.update_end(prev_end)
+        prev = new
+
+    if prev:
+        end = prev[0].interval[1]
+        for pat in prev:
+            yield pat.update_end(end)
