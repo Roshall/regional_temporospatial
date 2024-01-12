@@ -2,7 +2,8 @@ import os.path
 import dill
 from time import perf_counter as now
 
-from rest import build_tempo_spatial_index, base_query
+from indices.builder import build_tempo_spatial_index
+from search.one_pass import one_pass_search
 from utilities import dataset
 from utilities.box2D import Box2D
 from utilities.config import config
@@ -33,7 +34,7 @@ def query():
     duration = 1, 100
     count = 0
     start = now()
-    for _ in base_query(tempo_spat, region, label, duration, interval):
+    for _ in one_pass_search(tempo_spat, region, label, duration, interval):
         count += 1
     end = now()
     print('result count:', count, 'using', end - start, 's')

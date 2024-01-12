@@ -2,8 +2,9 @@ import heapq
 
 import numpy as np
 
-from rest import build_tempo_spatial_index, verify_seg, candidate_verified_queue, yield_co_move, \
-    base_query, SequentialSearcher
+from indices.builder import build_tempo_spatial_index
+from search.rest import verify_seg, candidate_verified_queue, yield_co_move
+from search.one_pass import one_pass_search, SequentialSearcher
 from utilities.box2D import Box2D
 from utilities.config import config
 from utilities.data_preprocessing import traj_data, gen_border
@@ -32,13 +33,13 @@ class TestTempSpatialIndex:
                     case _:
                         assert False
 
-    def test_base_query(self):
+    def test_one_pass_search(self):
         interval = 0, 10
         duration = 2, 30
         labels = {0: 1}
         region = Box2D((0, 400, 0, 500))
 
-        res = list(base_query(self.tempo_spatial, region, labels, duration, interval))
+        res = list(one_pass_search(self.tempo_spatial, region, labels, duration, interval))
         assert len(res) == 3
 
         region = Box2D((100, 300, 100, 400))
@@ -46,7 +47,7 @@ class TestTempSpatialIndex:
         interval = 0, 50
         duration = 10, 30
 
-        res = list(base_query(self.tempo_spatial, region, labels, duration, interval))
+        res = list(one_pass_search(self.tempo_spatial, region, labels, duration, interval))
         assert len(res) == 3
 
 
@@ -56,15 +57,15 @@ def test_verify_seg():
     points1 = np.array([[10, 67], [13, 83], [19, 92], [23, 113], [41, 121], [59, 102], [81, 83], [113, 75], [101, 49],
                         [54, 19], [31, 7], [27, 27], [19, 45], [13, 51], [9, 55]])
     seg1 = TrajectorySequenceSeg(1, 0, 0, points1)
-    res = verify_seg(region, seg1, 3)
+    res = verify_seg(seg1, region, 3)
     assert len(res) == 1
     assert res == [TrajectoryIntervalSeg(1, 11, 0, 3)]
-    res = verify_seg(region, seg1, 2)
+    res = verify_seg(seg1, region, 2)
     assert len(res) == 4
     assert [seg.begin for seg in res] == [1, 5, 8, 11]
 
     seg2 = TrajectorySequenceSeg(1, 0, 0, points1[1:-1])
-    res = verify_seg(region, seg2, 3)
+    res = verify_seg(seg2, region, 3)
     assert len(res) == 2
     assert [(seg.begin, seg.len) for seg in res] == [(0, 2), (10, 3)]
 
@@ -77,7 +78,7 @@ def test_candidate_verified_queue():
              enumerate(all_points)]]
 
     region = Box2D((0, 1.5 * np.pi, 0, 10))
-    data = list(candidate_verified_queue(region, cand, 5))
+    data = list(candidate_verified_queue(cand, region, 5))
     assert len(list(data)) == 30
 
 
