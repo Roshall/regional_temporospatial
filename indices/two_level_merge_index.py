@@ -1,4 +1,3 @@
-from abc import ABCMeta, abstractmethod
 from functools import partial
 
 
@@ -45,7 +44,7 @@ def intersect_not_sure_search(outer_idx, bboxes):
     separate absolute inner entries from the unsure.
     :param outer_idx: the top level index.
     :param bboxes: (dim0_min, dim0_max, dim1_min, dim1_max, ...).
-    :return a tuple of generators: (not_sure, sure)
+    :return: a tuple of generators: (not_sure, sure)
     """
     candidates, probation = outer_idx.where_intersect(bboxes[0])
     return (entry for inner in candidates for entry in inner.where_intersect(bboxes[1])), \
@@ -56,11 +55,24 @@ def intersect_fuzzy_inner_all(outer_idx, bboxes):
     """
     :param outer_idx: the top level index.
     :param bboxes: (dim0_min, dim0_max, dim1_min, dim1_max, ...).
-    :return a generator that iterates inner search result as a whole set with the linear constraints.
+    :return: a generator that iterates inner search result as a whole set with the linear constraints.
     """
     lo, hi = bboxes
     for outer_key, inner_idx in outer_idx:
         yield inner_idx.where_intersect((lo - outer_key + 1, hi))
+
+
+def intersect_not_sure_group(outer_idx, bboxes):
+    """
+    separate absolute inner entries from the unsure. results are group by regions
+    :param outer_idx: the top level index.
+    :param bboxes: (dim0_min, dim0_max, dim1_min, dim1_max, ...).
+    :return: a tuple: (not_sure, sure), where $not_sure and $sure are also tuples
+        with the same format: (region, entries), with $entries a generator
+    """
+    candidates, probation = outer_idx.where_intersect(bboxes[0])
+    return ((inner, inner.where_intersect(bboxes[1])) for inner in candidates), \
+        ((inner, inner.where_intersect(bboxes[1])) for inner in probation)
 
 
 strategies = {name.removeprefix('intersect_').title().replace('_', ''): stra for name, stra in globals().items()
