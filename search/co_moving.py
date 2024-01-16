@@ -29,3 +29,6 @@ class CoMovementPattern:
 
     def __eq__(self, other):
         return tuple(self.interval) == tuple(other.interval) and self.objs == other.objs
+
+    def __str__(self):
+        return f'({tuple(self.labels)}, {self.interval})'
