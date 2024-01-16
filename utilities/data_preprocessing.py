@@ -26,7 +26,7 @@ def traj_data(tracks, cols_name: list, fps, label_map, scale=100):
         cls_id = label_map[tid]
         start_frame = t[cols_name[1]].iat[0]
         trajs = (t[cols_name[-2:]][::fps].to_numpy() * scale).astype(np.int32)
-        traj_ls.append(TrajTrack(tid, cls_id,  start_frame, trajs))
+        traj_ls.append(TrajTrack(tid,start_frame,  cls_id,  trajs))
     return RawTraj(fps, lifelong, bbox, traj_ls)
 
 

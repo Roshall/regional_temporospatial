@@ -2,7 +2,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 from typing import Sequence
 
-TrajTrack = namedtuple('TrajTrace', 'tId clsId start_frame track')
+TrajTrack = namedtuple('TrajTrace', 'tId start_frame clsId track')
 RawTraj = namedtuple('RawTraj', 'fps life_long bbox traj_track')
 Traj_Meta = namedtuple('meta_key', 'duration loc')
 

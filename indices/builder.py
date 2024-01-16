@@ -21,7 +21,7 @@ def build_tempo_spatial_index(trajs):
     fill = np.vectorize(_C)
     reg.territory = fill(reg.territory)
 
-    for tid, label, beg, track in trajs.traj_track:
+    for tid, beg, label, track in trajs.traj_track:
         track_iter = iter(track)
         first_reg = reg.where_contain(next(track_iter))
         track_life = len(track)
