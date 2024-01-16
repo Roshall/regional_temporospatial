@@ -45,11 +45,11 @@ def absorb(trajectories: Mapping[int, Trajectory], duration):
             yield TrajectoryIntervalSeg(tid, traj.seg[0], traj.label, s_len)
 
 
-def base_sliding(trajs, labels, interval, dur, label_verifier):
+def base_sliding(trajectories:list[TrajectoryIntervalSeg], interval, dur, label_verifier):
 
-    trajs.sort(key=attrgetter('begin'))
+    trajectories.sort(key=attrgetter('begin'))
     # sliding windows alike method
-    ts_grouped_traj = groupby(trajs, key=attrgetter('begin'))
+    ts_grouped_traj = groupby(trajectories, key=attrgetter('begin'))
 
     start, end = interval
     end_q = []
