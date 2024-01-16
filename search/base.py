@@ -51,7 +51,7 @@ def base_sliding(trajectories:list[TrajectoryIntervalSeg], interval, dur, label_
     # sliding windows alike method
     ts_grouped_traj = groupby(trajectories, key=attrgetter('begin'))
 
-    start, end = interval
+    start, terminal = interval
     end_q = []
     label_m = {}
     for ts, trajs in ts_grouped_traj:
@@ -62,13 +62,24 @@ def base_sliding(trajectories:list[TrajectoryIntervalSeg], interval, dur, label_
                 if start + tra.len > dur:
                     label_m[tra.id] = tra.label
                     end_q.append((tra.len + tra.begin - 1, tra.id))
-    heapq.heapify(end_q)
     if label_verifier(Counter(label_m.values())):
         yield CoMovementPattern(label_m.copy(), [start.copy(), start+dur-1])
+    if ts == start:
+        return
+
+    for tra in trajs:
+        label_m[tra.id] = tra.label
+        end_q.append((tra.len + tra.begin - 1, tra.id))
+    heapq.heapify(end_q)
 
     sure = True
     for ts, trajs in chain([(ts, trajs)], ts_grouped_traj):
-        if (end := ts + dur - 1) > end_q[0][0]:
+        if (end := ts + dur - 1) >= terminal:
+            if sure or label_verifier(Counter(label_m.values())):
+                yield CoMovementPattern(label_m.copy(), [terminal - dur + 1, terminal])
+                break
+
+        if end > end_q[0][0]:
             for ts_end, group in group_until(end_q, end):
                 if sure or label_verifier(Counter(label_m.values())):
                     yield CoMovementPattern(label_m.copy(), [ts_end - dur + 1, ts_end])
@@ -85,9 +96,13 @@ def base_sliding(trajectories:list[TrajectoryIntervalSeg], interval, dur, label_
 
         if end == end_q[0][0]:
             for _, group in group_until(end_q, end):  # there must be only one group
-                for _, tid in group:
+                for tid in group:
                     del label_m[tid]
             sure = False
+    else:
+        if end_q:
+            if sure or label_verifier(Counter(label_m.values())):
+                yield CoMovementPattern(label_m.copy(), [terminal-dur+1, terminal])
 
 
 def base_search(spat_tempo_idx, region: Box2D, labels: Mapping, duration_range, interval):
@@ -105,7 +120,7 @@ def base_search(spat_tempo_idx, region: Box2D, labels: Mapping, duration_range, 
 
     trajs = list(absorb(visited, duration_range[0]))
     if trajs:
-        partial_res = base_sliding(trajs, labels, interval, duration_range[0], label_verifier)
+        partial_res = base_sliding(trajs, interval, duration_range[0], label_verifier)
         return expend(partial_res, label_verifier)
     else:
         return iter([])
