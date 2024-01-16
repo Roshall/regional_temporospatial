@@ -30,8 +30,8 @@ def absorb(trajectories: Mapping[int, Trajectory], duration):
             # so if two segments are adjacent, one's end == another begin.
             mid = seq[1:-1].reshape(-1, 2)
             remains = mid[np.flatnonzero(mid[:, 1] - mid[:, 0])].reshape(-1)
-            if remains:
-                res = np.empty(remains.size + 2)
+            if len(remains) > 0:
+                res = np.empty(remains.size + 2, dtype=np.int32)
                 res[[0, -1]] = seq[[0, -1]]
                 res[1:-1] = remains
                 res = res.reshape(-1, 2)
