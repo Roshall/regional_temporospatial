@@ -35,8 +35,9 @@ def absorb(trajectories: Mapping[int, Trajectory], duration):
                 res[[0, -1]] = seq[[0, -1]]
                 res[1:-1] = remains
                 res = res.reshape(-1, 2)
-                len_ = res[:, 1] - res[:, 0]
-                yield from [TrajectoryIntervalSeg(tid, beg, traj.label, l) for beg, l in zip(res[:, 1], len_) if l >= duration]
+                res[:, 1] -= res[:, 0]  # length
+                yield from [TrajectoryIntervalSeg(tid, beg, traj.label, l)
+                            for beg, l in res if l >= duration]
                 continue
 
         s_len = traj.seg[1] - traj.seg[0]
