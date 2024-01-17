@@ -1,4 +1,4 @@
-from search.base import absorb, base_sliding
+from search.base import absorb, BaseSliding
 from search.verifier import obj_verify
 from utilities.trajectory import Trajectory, TrajectoryIntervalSeg
 
@@ -22,5 +22,5 @@ def test_base_sliding():
     labels = {0: 1, 1:1}
     from functools import partial
     label_verifier = partial(obj_verify, labels)
-    res = [(tuple(pat.labels), pat.interval) for pat in base_sliding(trajs, interval, duration, label_verifier)]
+    res = [(tuple(pat.labels), pat.interval) for pat in BaseSliding(trajs, interval, duration, label_verifier)]
     assert res == ans
