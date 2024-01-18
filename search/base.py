@@ -117,21 +117,22 @@ class BaseSliding:
 
 
 def base_search(spat_tempo_idx, region: Box2D, labels: Mapping, duration_range, interval):
+    dur = duration_range[0]
     label_verifier = partial(obj_verify, labels)
     # Note that spat_tempo should use fuzzy search but not fuzzy inner all
     candidates, probation = zip(*(spat_tempo_idx[label].where_intersect(((region.bbox, duration_range), interval))
                                   for label in labels))
-    verified = candidate_verified_queue(candidates, region, duration_range)
+    verified = candidate_verified_queue(chain.from_iterable(candidates), region, dur)
     visited = {}
-    for seg in chain([verified, probation]):
+    for seg in chain(verified, chain.from_iterable(probation)):
         if (old := visited.get(seg.id, None)) is None:
             visited[seg.id] = Trajectory(seg.id, seg.label, [seg.begin, seg.begin + seg.len])
         else:
             old.seg.extend([seg.begin, seg.begin + seg.len])
 
-    trajs = list(absorb(visited, duration_range[0]))
+    trajs = list(absorb(visited, dur))
     if trajs:
-        partial_res = BaseSliding(trajs, interval, duration_range[0], label_verifier)
+        partial_res = BaseSliding(trajs, interval, dur, label_verifier)
         return expend(partial_res, label_verifier)
     else:
         return iter([])
