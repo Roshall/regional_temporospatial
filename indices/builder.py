@@ -2,15 +2,16 @@ from collections import defaultdict
 
 import numpy as np
 
-from indices import UserIdx
 from indices.region import GridRegion
+from indices.user_indices import get_user_indices
 from utilities.trajectory import TrajectorySequenceSeg
 
 
-def build_tempo_spatial_index(trajs):
+def build_tempo_spatial_index(trajs, cfg):
     # 1. find trajectory's region
     # config.gird_border = gen_border(trajs.bbox, 10, 15)
     reg = GridRegion()
+    UserIdx = get_user_indices(cfg)
     user_idx = defaultdict(UserIdx)
 
     # we need to fill the territory with distinct objects

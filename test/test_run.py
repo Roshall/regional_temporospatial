@@ -2,7 +2,8 @@ import heapq
 
 import numpy as np
 
-from indices.builder import build_tempo_spatial_index
+from configs import cfg
+from indices import build_tempo_spatial_index
 from search.rest import yield_co_move
 from search.verifier import candidate_verified_queue, verify_seg
 from search.one_pass import one_pass_search, SequentialSearcher
@@ -18,7 +19,7 @@ class TestTempSpatialIndex:
     trajs = traj_data(data, cols, 1, cls_map)
     broders = gen_border(trajs.bbox, 5, 6)
     config.gird_border = broders
-    tempo_spatial = build_tempo_spatial_index(trajs)
+    tempo_spatial = build_tempo_spatial_index(trajs, cfg)
 
     def test_build_tempo_spatial_index(self):
         cands, probs = self.tempo_spatial[0].where_intersect([((0, 1, 0, 1), (10, 30)), (0, 10)])

@@ -1,1 +1,1 @@
-from .user_indices import UserIdx
+from .builder import build_tempo_spatial_index
