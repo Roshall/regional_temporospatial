@@ -1,7 +1,10 @@
-from search.base import absorb, BaseSliding
+from configs import cfg
+from indices import build_tempo_spatial_index
+from search.base import absorb, BaseSliding, base_search
+from search.rest import expend
 from search.verifier import obj_verify
 from utilities.trajectory import Trajectory, TrajectoryIntervalSeg
-
+from functools import partial
 
 def test_absorb():
     segs = [[9, 20, 1, 5, 29, 30, 6, 9, 20, 23, 27, 28, 26, 27, 28, 29],
@@ -12,15 +15,23 @@ def test_absorb():
     assert res == ans
 
 
-def test_base_sliding():
+class TestBaseSliding(object):
     traj_len = [[1, 21], [1, 5], [2, 10], [5, 16], [15, 20], [15, 21]]
-    trajs = [TrajectoryIntervalSeg(i, itv[0], i & 1, itv[1]-itv[0]) for i, itv in enumerate(traj_len)]
-    ans = [((0,1), [1, 4]), ((0,2,3), [5,8]),
-           ((0,2,3), [6,9]), ((0, 3), [12, 15]), ((0, 4, 5), [15, 18]), ((0, 4, 5), [17, 20])]
+    trajs = [TrajectoryIntervalSeg(i, itv[0], i & 1, itv[1] - itv[0]) for i, itv in enumerate(traj_len)]
+
     interval = 0, 20
     duration = 4
-    labels = {0: 1, 1:1}
-    from functools import partial
+    labels = {0: 1, 1: 1}
     label_verifier = partial(obj_verify, labels)
-    res = [(tuple(pat.labels), pat.interval) for pat in BaseSliding(trajs, interval, duration, label_verifier)]
-    assert res == ans
+    sliding = BaseSliding(trajs, interval, duration, label_verifier)
+
+    def test_base_sliding(self):
+        ans = [((0, 1), [1, 4]), ((0, 2, 3), [5, 8]),
+               ((0, 2, 3), [6, 9]), ((0, 3), [12, 15]), ((0, 4, 5), [15, 18]), ((0, 4, 5), [17, 20])]
+        res = [(tuple(pat.labels), pat.interval) for pat in self.sliding]
+        assert res == ans
+
+    def test_final(self):
+        ans = [((0,1), [1,4]), ((0, 2, 3), [5, 9]), ((0, 3), [5, 15]), ((0, 4, 5), [15, 20])]
+        res = [(tuple(pat.labels), pat.interval) for pat in expend(self.sliding, self.label_verifier)]
+        assert res == ans
