@@ -3,6 +3,7 @@ from indices import build_tempo_spatial_index
 from search.base import absorb, BaseSliding, base_search
 from search.rest import expend
 from search.verifier import obj_verify
+from test.index_test_helper import grid_spt_tempo_idx_fake_data, query4test
 from utilities.trajectory import Trajectory, TrajectoryIntervalSeg
 from functools import partial
 
@@ -35,3 +36,16 @@ class TestBaseSliding(object):
         ans = [((0,1), [1,4]), ((0, 2, 3), [5, 9]), ((0, 3), [5, 15]), ((0, 4, 5), [15, 20])]
         res = [(tuple(pat.labels), pat.interval) for pat in expend(self.sliding, self.label_verifier)]
         assert res == ans
+
+
+def test_base_search():
+    cfg.merge_from_file('../configs/region_base.yml')
+    spt_tempo = grid_spt_tempo_idx_fake_data(cfg)
+
+    test1, test2 = query4test()
+    res = list(base_search(spt_tempo, *test1))
+    assert len(res) == 3
+
+    res = list(base_search(spt_tempo, *test2))
+    assert len(res) == 3
+

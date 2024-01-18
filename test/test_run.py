@@ -3,23 +3,16 @@ import heapq
 import numpy as np
 
 from configs import cfg
-from indices import build_tempo_spatial_index
 from search.rest import yield_co_move
 from search.verifier import candidate_verified_queue, verify_seg
 from search.one_pass import one_pass_search, SequentialSearcher
+from test.index_test_helper import grid_spt_tempo_idx_fake_data, query4test
 from utilities.box2D import Box2D
-from utilities.config import config
-from utilities.data_preprocessing import traj_data, gen_border
 from utilities.trajectory import TrajectorySequenceSeg, TrajectoryIntervalSeg, BasicTrajectorySeg
-from utilities import dataset
 
 
 class TestTempSpatialIndex:
-    data, cols, cls_map, = dataset.load_fake()
-    trajs = traj_data(data, cols, 1, cls_map)
-    broders = gen_border(trajs.bbox, 5, 6)
-    config.gird_border = broders
-    tempo_spatial = build_tempo_spatial_index(trajs, cfg)
+    tempo_spatial = grid_spt_tempo_idx_fake_data(cfg)
 
     def test_build_tempo_spatial_index(self):
         cands, probs = self.tempo_spatial[0].where_intersect([((0, 1, 0, 1), (10, 30)), (0, 10)])
@@ -36,20 +29,12 @@ class TestTempSpatialIndex:
                         assert False
 
     def test_one_pass_search(self):
-        interval = 0, 10
-        duration = 2, 30
-        labels = {0: 1}
-        region = Box2D((0, 400, 0, 500))
+        test1, test2 = query4test()
 
-        res = list(one_pass_search(self.tempo_spatial, region, labels, duration, interval))
+        res = list(one_pass_search(self.tempo_spatial, *test1))
         assert len(res) == 3
 
-        region = Box2D((100, 300, 100, 400))
-        labels = {0: 2, 1: 1}
-        interval = 0, 50
-        duration = 10, 30
-
-        res = list(one_pass_search(self.tempo_spatial, region, labels, duration, interval))
+        res = list(one_pass_search(self.tempo_spatial, *test2))
         assert len(res) == 3
 
 
@@ -76,11 +61,11 @@ def test_candidate_verified_queue():
     x = np.linspace(0, np.pi, 100)
     Y = [np.cos(x * 20) * 10, np.sin((x + np.pi / 4) * 20) * 10]
     all_points = [np.vsplit(np.vstack((x, y)).T, 10) for y in Y]
-    cand = [[[TrajectorySequenceSeg(i, j * 10, 0, obj_ps) for j, obj_ps in enumerate(ind)] for i, ind in
-             enumerate(all_points)]]
+    cand = [[TrajectorySequenceSeg(i, j * 10, 0, obj_ps) for j, obj_ps in enumerate(ind)] for i, ind in
+            enumerate(all_points)]
 
     region = Box2D((0, 1.5 * np.pi, 0, 10))
-    data = list(candidate_verified_queue(cand, region, 5))
+    data = list(candidate_verified_queue(heapq.merge(*cand), region, 5))
     assert len(list(data)) == 30
 
 
