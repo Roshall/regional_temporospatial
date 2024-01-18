@@ -12,6 +12,14 @@ class CoMovementPattern:
     def objs(self):
         return self.labels.keys()
 
+    @property
+    def start(self):
+        return self.interval[0]
+
+    @start.setter
+    def start(self, val):
+        self.interval[0] = val
+
     def label_count(self):
         return Counter(self.labels.values())
 
