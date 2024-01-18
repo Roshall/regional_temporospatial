@@ -40,9 +40,9 @@ def absorb(trajectories: Mapping[int, Trajectory], duration):
                             for beg, l in res if l >= duration]
                 continue
 
-        s_len = traj.seg[1] - traj.seg[0]
+        s_len = seq[-1] - seq[0]
         if s_len >= duration:
-            yield TrajectoryIntervalSeg(tid, traj.seg[0], traj.label, s_len)
+            yield TrajectoryIntervalSeg(tid, seq[0], traj.label, s_len)
 
 
 class BaseSliding:
