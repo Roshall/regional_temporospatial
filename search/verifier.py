@@ -16,11 +16,8 @@ def candidate_verified_queue(candidates: Iterable, region: Box2D, duration: int)
     :param duration: the least lifetime of a segment
     :return: trajectory segments within region, which are guaranteed to be sorted by `begin` if `candidates` is sorted.
     """
-    cand_queue = iter(candidates)
-    if (first := next(cand_queue, None)) is None:
-        return
-    verified = verify_seg(first, region, duration)
-    for cand_seg in cand_queue:
+    verified = []
+    for cand_seg in candidates:
         segs = verify_seg(cand_seg, region, duration)
         if segs:
             pos = bisect_right(verified, segs[0])
