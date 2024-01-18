@@ -104,11 +104,12 @@ def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
                 break
 
             if len(new_pattern) == len(cur):  # cur is a proper subset of pat
-                new.append(pat.update_end(end))
+                yield pat
+                cur.start = pat.start
                 count += 1
                 continue
 
-            if obj_varifier(new_pattern.label_count()):
+            if obj_varifier(new_pattern.label_count()):  # really a new pattern
                 new_pattern.interval = [pat.interval[0], end]
                 yield pat.update_end(prev_end)
                 new.append(cur)
