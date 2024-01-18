@@ -68,8 +68,9 @@ class SequentialSearcher:
                 yield from self._yield_until(t, pre_insert)
             next_end = self._update(pre_insert)
 
-        if next_end < finish + 2:  # in a segment, end point is exclusive
-            yield from self._yield_until(finish + 1, {})
+        finish += 1   # in a segment, end point is exclusive
+        if next_end < finish:
+            yield from self._yield_until(finish-1, {})
         yield from self.verify(finish, [self.playground[info[1]] for info in self.etq])
 
 

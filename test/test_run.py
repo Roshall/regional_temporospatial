@@ -92,9 +92,9 @@ def test_yield_co_move():
     ts = 15
     ids = [active_space[i] for i in (1, 2, 4)]
 
-    label_quizzes = [{0: 2, 1: 2, 2: 1}, {0: 3, 1: 1, 2: 1}, {0: 1, 1: 1, 2: 0}]
+    label_quizzes = [{0: 2, 1: 2, 2: 1}, {0: 3, 1: 1, 2: 1}, {0: 1, 1: 1, 2: 1}]
 
-    ans = [1, 0, 3]
+    ans = [1, 0, 2]
     for labels, a in zip(label_quizzes, ans):
         test_map = dict(active_space)
         res = list(yield_co_move(duration, labels, test_map, ts, ids))
@@ -110,7 +110,7 @@ def test_sequential_search():
                              (TrajectoryIntervalSeg(tid, *info) for tid, info in enumerate(traj2, 1)),
                              (TrajectoryIntervalSeg(tid, *info) for tid, info in enumerate(traj3, 6)))
 
-    ans = [(6, 16, 1), (8, 19, 3), (9, 20, 1), (11, 21, 6)]
+    ans = [(6, 16, 1), (8, 19, 3), (9, 20, 1), (11, 21, 1), (11, 22, 5)]
     searcher = SequentialSearcher((3, 21), lambda am, end, cond: [(len(am), end, len(cond))])
     query = list(searcher.search(traj_total))
     assert ans == query
