@@ -96,6 +96,6 @@ def test_sequential_search():
                              (TrajectoryIntervalSeg(tid, *info) for tid, info in enumerate(traj3, 6)))
 
     ans = [(6, 16, 1), (8, 19, 3), (9, 20, 1), (11, 21, 1), (11, 22, 5)]
-    searcher = SequentialSearcher((3, 21), lambda am, end, cond: [(len(am), end, len(cond))])
-    query = list(searcher.search(traj_total))
+    searcher = SequentialSearcher(traj_total, (3, 21), lambda am, end, cond: [(len(am), end, len(cond))])
+    query = list(searcher)
     assert ans == query

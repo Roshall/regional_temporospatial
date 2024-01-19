@@ -12,7 +12,8 @@ from utilities.trajectory import TrajectoryIntervalSeg, TrajectorySequenceSeg
 
 
 class SequentialSearcher:
-    def __init__(self, interval, verifier):
+    def __init__(self, trajs: Iterable[TrajectoryIntervalSeg | TrajectorySequenceSeg], interval, verifier):
+        self.ts_grouped_traj = groupby(trajs, attrgetter('begin'))
         self.interval = interval
         self.playground = {}
         self.verify = partial(verifier, self.playground)
@@ -42,27 +43,29 @@ class SequentialSearcher:
             self.etq_push((tra.len + tra.begin, tra_id))
         return self.etq[0][0]
 
-    def _head(self, grouped_trajs):
+    def _init_state(self):
         start = self.interval[0]
-        for ts, trajs in grouped_trajs:  # gather trajs on the starting border
+        seen = set()
+        for ts, trajs in self.ts_grouped_traj:  # gather trajs on the starting border
             for traj in trajs:
-                self.etq_push((traj.begin + traj.len, traj.id))
+                if traj.id not in seen:  # rear case: two identical traj
+                    self.etq_push((traj.begin + traj.len, traj.id))
+                    seen.add(traj.id)
                 if ts < start:
                     (traj := copy(traj)).begin = start
                 self.playground[traj.id] = traj
             if ts > start:
                 break
 
-    def search(self, trajs: Iterable[TrajectoryIntervalSeg | TrajectorySequenceSeg]):
+    def __iter__(self):
         begin, finish = self.interval
-        ts_grouped_traj = groupby(trajs, key=attrgetter('begin'))
-        self._head(ts_grouped_traj)
+        self._init_state()
         if self.etq:
             next_end = self.etq[0][0]
         else:
             return
 
-        for t, group in ts_grouped_traj:
+        for t, group in self.ts_grouped_traj:
             pre_insert = {traj.id: traj for traj in group}
             if next_end <= t:
                 yield from self._yield_until(t, pre_insert)
@@ -83,5 +86,4 @@ def one_pass_search(tempo_spat_idx, region: Box2D, labels: Mapping, duration_ran
                                                       region, duration_range[0]),
                              key=attrgetter('begin'))
     verifier = partial(yield_co_move, duration_range[0], labels)
-    searcher = SequentialSearcher(interval, verifier)
-    return searcher.search(traj_queue)
+    return SequentialSearcher(traj_queue, interval, verifier)
