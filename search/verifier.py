@@ -35,17 +35,24 @@ def verify_seg(segment: TrajectorySequenceSeg, region: Box2D, duration: int) -> 
     :param segment: trajectory sequence segment.
     :param region: a box object with `enclose` function implemented
     :param duration: the least lifetime of a segment
-    :return: sorted parts of the segment by `begin`
+    :return: sorted parts of the segment by `begin`simplify verified queue
     """
     mask = region.enclose(segment.points)
-    break_pos = np.append(-1, np.where(mask == False))
-    seg_lens = np.diff(break_pos, append=len(mask)) - 1
-    if len(break_pos) > 1:  # if the seg is cut into pieces, each is treated separately
-        seg_lens_mid = seg_lens[1:-1]
-        seg_lens_mid[seg_lens_mid < duration] = 0
+    in_pos = np.flatnonzero(mask)
+    res = []
+    if len(in_pos) != 0:
+        sid, begin, label = segment.id, segment.begin, segment.label
+        start_pos = np.flatnonzero(np.diff(in_pos, prepend=-2) > 1)
+        seg_lens = np.diff(start_pos, append=len(in_pos))
+        res_mask = np.flatnonzero(seg_lens >= duration)
+        if mask[0] and seg_lens[0] < duration:
+            res.append(TrajectoryIntervalSeg(sid, begin, label, seg_lens[0]))
 
-    return [TrajectoryIntervalSeg(segment.id, segment.begin + pos + 1, segment.label, len_)
-            for pos, len_ in zip(break_pos, seg_lens) if len_ > 0]
+        res.extend(TrajectoryIntervalSeg(sid, begin + in_pos[start_pos[m]], label, seg_lens[m]) for m in res_mask)
+
+        if mask[-1] and seg_lens[-1] < duration:
+            res.append(TrajectoryIntervalSeg(sid, begin + in_pos[start_pos[-1]], label, seg_lens[-1]))
+    return res
 
 
 def obj_verify(target, label_map):
