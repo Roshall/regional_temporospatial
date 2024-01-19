@@ -58,7 +58,7 @@ class BaseSliding:
 
     def __iter__(self):
         terminal = self.interval[1]
-        yield from self._init_state()
+        self._init_state()
 
         for ts, trajs in self.ts_grouped_traj:
             if (end := ts + self.dur - 1) >= terminal:
@@ -67,7 +67,7 @@ class BaseSliding:
                 yield from self.check_new_pattern([terminal - self.dur + 1, terminal])
                 break
 
-            if end > self.end_q[0][0]:
+            if self.end_q and end > self.end_q[0][0]:
                 for ts_end, group in self.eq_group_pop(end):
                     yield from self.check_new_pattern([ts_end - self.dur + 1, ts_end])
                     self._remove(group)
@@ -100,10 +100,6 @@ class BaseSliding:
                         self.label_m[tra.id] = tra.label
                         self.end_q.append((tra.len + tra.begin - 1, tra.id))
 
-        if not self.end_q:
-            self._add(trajs)
-        else:
-            yield from self.check_new_pattern([start, start+self.dur-1])
         self.ts_grouped_traj = chain([(ts, trajs)], ts_grouped_traj)
 
     def check_new_pattern(self, interval=None):
