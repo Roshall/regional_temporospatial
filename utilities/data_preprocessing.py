@@ -1,11 +1,15 @@
 import numpy as np
 
-from utilities.trajectory import RawTraj, TrajTrack
+
+def view_field(object_tb, x_name, y_name, scale=1):
+    X = object_tb[x_name]
+    Y = object_tb[y_name]
+    return np.array((X.min(), X.max(), Y.min(), Y.max()), dtype=np.int32) * scale
 
 
 def traj_data(tracks, cols_name: list, fps, label_map, scale=100):
     """
-    load raw scv data to trajectory entry.
+    load objects data to trajectory entry.
     :param tracks: pandas data frame of tracks
     :param cols_name: [track_id, frame_id, x, y] are wanted, supply their actual properties name in order.
     :param fps: integer
@@ -14,20 +18,12 @@ def traj_data(tracks, cols_name: list, fps, label_map, scale=100):
     :return: trajectories tuple with format ('TrajTrace', 'tId start_frame track') and points of all trajectories.
     """
     tracks = tracks[cols_name]
-    frames = tracks[cols_name[1]]
-    lifelong = frames.max() - frames.min() + 1
-    X = tracks[cols_name[2]]
-    Y = tracks[cols_name[3]]
-    bbox = np.array((X.min(), X.max(), Y.min(), Y.max())) * scale
-    bbox = bbox.astype(np.int32)
     traces_by_id = tracks.groupby(cols_name[0])
-    traj_ls = []
     for tid, t in traces_by_id:
         cls_id = label_map[tid]
         start_frame = t[cols_name[1]].iat[0]
         trajs = (t[cols_name[-2:]][::fps].to_numpy() * scale).astype(np.int32)
-        traj_ls.append(TrajTrack(tid,start_frame,  cls_id,  trajs))
-    return RawTraj(fps, lifelong, bbox, traj_ls)
+        yield tid, start_frame,  cls_id,  trajs
 
 
 def gen_border(bbox, x_num, y_num):
@@ -57,23 +53,19 @@ def group_by_frame(df, interval):
     return df.groupby('fid')
 
 
-def traj_interp(yolo_out_file_name, out_path, center=False):
+def traj_interp(np_arr, center=False):
     import pandas as pd
 
-    np_arr = np.load(yolo_out_file_name)
-
     np_arr[:, 3] += np_arr[:, 5]
-    np_arr[:, 3] /= 2
+    np_arr[:, 3] //= 2
     if center:
         np_arr[:, 6] += np_arr[:, 4]
-        np_arr[:, 6] /= 2
+        np_arr[:, 6] //= 2
 
     header = ['oid', 'cls', 'fid', 'x', 'y']
-    df = pd.DataFrame(np_arr[:, [0, 1, 2, 3, 6]], columns=header)
-
-    df = df.sort_values('oid')
+    # sort by oid
+    np_arr = np_arr[:, [0, 1, 2, 3, 6]][np.argsort(np_arr[:, 0])]
     # group by objects
-    np_arr = df.to_numpy()
     diff = np.diff(np_arr[:, 0], prepend=np_arr[0, 0]).nonzero()[0]
     group_by_id = np.split(np_arr, diff)
     interp_ls = []
@@ -86,10 +78,7 @@ def traj_interp(yolo_out_file_name, out_path, center=False):
             df_interp.interpolate(inplace=True)
         interp_ls.append(df_interp.reset_index())
     df = pd.concat(interp_ls, ignore_index=True, copy=False)
-    df = df.astype({'oid': np.int32, 'cls': np.int16, 'x': np.int32, 'y': np.int32})
-    # save to pickle
-    base = os.path.basename(yolo_out_file_name).split('.')
-    df.to_pickle(f'{out_path}/{base[0]}.pkl')
+    return df.astype({'oid': np.int32, 'cls': np.int16, 'x': np.int32, 'y': np.int32})
 
 
 if __name__ == '__main__':

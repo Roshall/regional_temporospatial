@@ -22,7 +22,7 @@ def build_tempo_spatial_index(trajs, cfg):
     fill = np.vectorize(_C)
     reg.territory = fill(reg.territory)
 
-    for tid, beg, label, track in trajs.traj_track:
+    for tid, beg, cls_id, track in trajs:
         track_iter = iter(track)
         first_reg = reg.where_contain(next(track_iter))
         track_life = len(track)
@@ -32,13 +32,13 @@ def build_tempo_spatial_index(trajs, cfg):
             if (last_reg := reg.where_contain(coord)) is not first_reg:
                 # 2. insert to index
                 ts_beg = start + beg
-                user_idx[label].add(((track[start], track_life), (end - start, ts_beg)),
-                                    TrajectorySequenceSeg(tid, ts_beg, label, track[start:end]))
+                user_idx[cls_id].add(((track[start], track_life), (end - start, ts_beg)),
+                                     TrajectorySequenceSeg(tid, ts_beg, cls_id, track[start:end]))
                 start = end
                 first_reg = last_reg
             end += 1
 
         ts_beg = start + beg
-        user_idx[label].add(((track[start], track_life), (end - start, ts_beg)),
-                            TrajectorySequenceSeg(tid, ts_beg, label, track[start:end]))
+        user_idx[cls_id].add(((track[start], track_life), (end - start, ts_beg)),
+                             TrajectorySequenceSeg(tid, ts_beg, cls_id, track[start:end]))
     return user_idx

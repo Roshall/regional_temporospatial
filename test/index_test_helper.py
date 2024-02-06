@@ -2,13 +2,13 @@ from indices import build_tempo_spatial_index
 from utilities import dataset
 from utilities.box2D import Box2D
 from utilities.config import config
-from utilities.data_preprocessing import traj_data, gen_border
+from utilities.data_preprocessing import traj_data, gen_border, view_field
 
 
 def grid_spt_tempo_idx_fake_data(cfg):
     data, cols, cls_map, = dataset.load_fake()
     trajs = traj_data(data, cols, 1, cls_map)
-    broders = gen_border(trajs.bbox, 5, 6)
+    broders = gen_border(view_field(data, *cols[-2:]), 5, 6)
     config.gird_border = broders
     return build_tempo_spatial_index(trajs, cfg)
 
