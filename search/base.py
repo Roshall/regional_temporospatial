@@ -58,26 +58,34 @@ class BaseSliding:
 
     def __iter__(self):
         terminal = self.interval[1]
-        self._init_state()
+        last_end = self._init_state()
 
         for ts, trajs in self.ts_grouped_traj:
-            if (end := ts + self.dur - 1) >= terminal:
-                if end == terminal:
+            if (traj_end := ts + self.dur - 1) >= terminal:
+                if traj_end == terminal:
                     self._add(trajs)
                 yield from self.check_new_pattern([terminal - self.dur + 1, terminal])
                 break
 
-            if self.end_q and end > self.end_q[0][0]:
-                for ts_end, group in self.eq_group_pop(end):
-                    yield from self.check_new_pattern([ts_end - self.dur + 1, ts_end])
-                    self._remove(group)
+            if self.end_q:
+                cur_min_end = min(traj_end, self.end_q[0][0])
+                if cur_min_end > last_end and self.label_verifier(Counter(self.label_m.values())):
+                    # all objects' durations are longer than the window size
+                    while cur_min_end > last_end:
+                        yield CoMovementPattern(self.label_m.copy(), [last_end, last_end + self.dur - 1])
+                        last_end += self.dur - 1
+                if traj_end > cur_min_end:
+                    for ts_end, group in self.eq_group_pop(traj_end):
+                        yield from self.check_new_pattern([ts_end - self.dur + 1, ts_end])
+                        self._remove(group)
 
             self._add(trajs)
-            yield from self.check_new_pattern([ts, end])
+            yield from self.check_new_pattern([ts, traj_end])
 
-            if end == self.end_q[0][0]:
-                for _, group in self.eq_group_pop(end):  # there must be only one group
+            if traj_end == self.end_q[0][0]:
+                for _, group in self.eq_group_pop(traj_end):  # there must be only one group
                     self._remove(group)
+            last_end = ts + self.dur - 1
         else:
             if self.end_q:
                 yield from self.check_new_pattern([terminal-self.dur+1, terminal])
@@ -101,6 +109,7 @@ class BaseSliding:
                         self.end_q.append((tra.len + tra.begin - 1, tra.id))
 
         self.ts_grouped_traj = chain([(ts, trajs)], ts_grouped_traj)
+        return ts + self.dur - 1
 
     def check_new_pattern(self, interval=None):
         if self.label_verifier(Counter(self.label_m.values())):
@@ -132,5 +141,3 @@ def base_search(spat_tempo_idx, region: Box2D, labels: Mapping, duration_range, 
         return expend(partial_res, label_verifier)
     else:
         return iter([])
-
-

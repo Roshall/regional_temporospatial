@@ -17,15 +17,19 @@ class CoMovementPattern:
         return self.interval[0]
 
     @start.setter
-    def start(self, val):
+    def start(self, val: int):
         self.interval[0] = val
+
+    @property
+    def end(self):
+        return self.interval[1]
+
+    @end.setter
+    def end(self, val: int):
+        self.interval[1] = val
 
     def label_count(self):
         return Counter(self.labels.values())
-
-    def update_end(self, end: int):
-        self.interval[1] = end
-        return self
 
     def __len__(self):
         return len(self.labels)

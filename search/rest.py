@@ -88,16 +88,21 @@ def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
     # Note that prev[0] ⊃ prev[1] ⊃ prev[2] ⊃ ...
     prev = []
     for cur in sliding_result:
+        if prev and cur.start > (prev_end := prev[0].end):  # not consecutive
+            yield prev[0]
+            prev = [cur]
+            continue
+
         new = []
         count = 0
-        prev_end = prev[0].interval[1] if prev else None
-        end = cur.interval[1]
+        cur_end = cur.end
         absort = True
         for pat in prev:
             new_pattern = pat & cur
             if len(new_pattern) == len(pat):  # pat is a subset of cur
                 if len(new_pattern) == len(cur):  # pat equals to cur
-                    new.append(pat.update_end(end))
+                    pat.end = cur_end
+                    new.append(pat)
                     count += 1
                 else:
                     new.append(cur)
@@ -110,8 +115,9 @@ def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
                 continue
 
             if obj_varifier(new_pattern.label_count()):  # really a new pattern
-                new_pattern.interval = [pat.interval[0], end]
-                yield pat.update_end(prev_end)
+                new_pattern.interval = [pat.interval[0], cur_end]
+                pat.end = prev_end
+                yield pat
                 new.append(cur)
                 cur = new_pattern
                 count += 1
@@ -126,10 +132,12 @@ def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
             new.extend(islice(prev, count, None))
         else:
             for pat in islice(prev, count, None):
-                yield pat.update_end(prev_end)
+                pat.end = prev_end
+                yield pat
         prev = new
 
     if prev:
-        end = prev[0].interval[1]
+        cur_end = prev[0].interval[1]
         for pat in prev:
-            yield pat.update_end(end)
+            pat.end = cur_end
+            yield pat
