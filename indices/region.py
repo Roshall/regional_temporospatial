@@ -1,11 +1,10 @@
 from bisect import bisect_right
 import numpy as np
 
-from .index_interface import Index
 from utilities.config import config
 
 
-class GridRegion(Index):
+class GridRegion:
     def __init__(self):
         self.borders = config.gird_border
         # this marker marks the starting point of each grid, while $borders
@@ -70,7 +69,7 @@ class GridRegion(Index):
         return np.setdiff1d(candidate, probation, assume_unique=True), probation
 
 
-class Out3DRegion(Index):
+class Out3DRegion:
     def __init__(self, data=None):
         import btree
         self.duration_index = btree.BtreeMap()
@@ -100,7 +99,7 @@ def unsure(cls):
     return unsure_cls
 
 
-class TrajectoryClusteringRegion(Index):
+class TrajectoryClusteringRegion:
     def add(self, key, entry) -> None:
         pass
 

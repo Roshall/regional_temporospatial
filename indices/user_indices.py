@@ -18,6 +18,6 @@ from .two_level_merge_index import TwoLevelMergeIndex
 def get_user_indices(cfg):
     Tempo2DIdx = partial(TwoLevelMergeIndex, btree.BtreeMap, btree.BtreeMultiMap, cfg.INDEX.SEARCH_METHOD.TEMPO)
 
-    Out3DRegion = partial(TwoLevelMergeIndex, GridRegion if cfg.INDEX.REGION.SURE else unsure(GridRegion),
+    Out3DRegion = partial(TwoLevelMergeIndex, GridRegion if cfg.INDEX.REGION.COARSE else unsure(GridRegion),
                           btree.BtreeMap, cfg.INDEX.SEARCH_METHOD.REGION)
     return partial(TwoLevelMergeIndex, Out3DRegion, Tempo2DIdx, cfg.INDEX.SEARCH_METHOD.USER)
