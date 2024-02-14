@@ -85,11 +85,18 @@ def sliding_window(df, win_len):
 
 def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
     # $prev stores seen patterns. Every pattern is a set of objs that co-moves a certain period
-    # Note that prev[0] ⊃ prev[1] ⊃ prev[2] ⊃ ...
-    prev = []
+    # Note that in terms of object set, prev[0] ⊃ prev[1] ⊃ prev[2] ⊃ ...
+    sliding_result = iter(sliding_result)
+    cur = next(sliding_result, None)
+    if cur is None:
+        return
+    prev = [cur]
     for cur in sliding_result:
-        if prev and cur.start > (prev_end := prev[0].end):  # not consecutive
-            yield prev[0]
+        prev_end = prev[0].end
+        if cur.start > prev_end + 1:  # not consecutive in time interval
+            for p in prev:
+                p.end = prev_end
+                yield p
             prev = [cur]
             continue
 
@@ -102,20 +109,17 @@ def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
             if len(new_pattern) == len(pat):  # pat is a subset of cur
                 if len(new_pattern) == len(cur):  # pat equals to cur
                     pat.end = cur_end
-                    new.append(pat)
-                    count += 1
                 else:
                     new.append(cur)
                 break
 
-            if len(new_pattern) == len(cur):  # cur is a proper subset of pat
+            elif len(new_pattern) == len(cur):  # cur is a proper subset of pat
                 yield pat
                 cur.start = pat.start
                 count += 1
-                continue
 
-            if obj_varifier(new_pattern.label_count()):  # really a new pattern
-                new_pattern.interval = [pat.interval[0], cur_end]
+            elif obj_varifier(new_pattern.label_count()):  # really a new pattern
+                new_pattern.interval = [pat.start, cur_end]
                 pat.end = prev_end
                 yield pat
                 new.append(cur)
@@ -128,16 +132,17 @@ def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
         else:
             new.append(cur)
 
+        rests = islice(prev, count, None)
         if absort:
-            new.extend(islice(prev, count, None))
+            new.extend(rests)
         else:
-            for pat in islice(prev, count, None):
+            for pat in rests:
                 pat.end = prev_end
                 yield pat
         prev = new
 
     if prev:
-        cur_end = prev[0].interval[1]
+        cur_end = prev[0].end
         for pat in prev:
             pat.end = cur_end
             yield pat
