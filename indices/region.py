@@ -31,6 +31,17 @@ class GridRegion:
             return
         return self.territory[self._point2idx(loc)]
 
+    def index(self, locs):
+        mask = np.ones(locs.shape[0], dtype=bool)
+        loc_t = locs.T
+        for dim_grid, dim_point in zip(self.borders, loc_t):
+            mask &= (dim_point >= dim_grid[0]) | (dim_point <= dim_grid[-1])
+        assert mask.all()
+        res = np.zeros(locs.shape[0], dtype=np.int32)
+        for i, (dim_grid, dim_point) in enumerate(zip(self.borders, loc_t)):
+            res += (np.searchsorted(dim_grid, dim_point, side='right') - 1) * (len(dim_grid) if i < 1 else 1)
+        return res
+
     def where_intersect(self, bbox):
         bbox_iter = iter(bbox)
         region_ls = []

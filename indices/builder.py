@@ -1,4 +1,5 @@
 from collections import defaultdict
+from itertools import pairwise
 
 import numpy as np
 
@@ -14,31 +15,14 @@ def build_tempo_spatial_index(trajs, cfg):
     UserIdx = get_user_indices(cfg)
     user_idx = defaultdict(UserIdx)
 
-    # we need to fill the territory with distinct objects
-    class _C:
-        def __init__(self, arg):
-            pass
-
-    fill = np.vectorize(_C)
-    reg.territory = fill(reg.territory)
-
     for tid, beg, cls_id, track in trajs:
-        track_iter = iter(track)
-        first_reg = reg.where_contain(next(track_iter))
-        track_life = len(track)
-        start, end = 0, 1
-        # if some point jumps to another region, we cut the trajectory to a new segment.
-        for coord in track_iter:
-            if (last_reg := reg.where_contain(coord)) is not first_reg:
-                # 2. insert to index
-                ts_beg = start + beg
-                user_idx[cls_id].add(((track[start], track_life), (end - start, ts_beg)),
-                                     TrajectorySequenceSeg(tid, ts_beg, cls_id, track[start:end]))
-                start = end
-                first_reg = last_reg
-            end += 1
+        pos = reg.index(track)
+        break_points = np.flatnonzero(np.diff(pos, prepend=-1))
+        spt_idx = user_idx[cls_id]
+        track_lifelong = len(track)
+        for start, end in pairwise(break_points):
+            ts_beg = start + beg
+            spt_idx.add(((track[start], track_lifelong), (end - start, ts_beg)),
+                        TrajectorySequenceSeg(tid, ts_beg, cls_id, track[start:end]))
 
-        ts_beg = start + beg
-        user_idx[cls_id].add(((track[start], track_life), (end - start, ts_beg)),
-                             TrajectorySequenceSeg(tid, ts_beg, cls_id, track[start:end]))
     return user_idx
