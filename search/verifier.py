@@ -1,5 +1,6 @@
 from _bisect import bisect_right
 from itertools import islice
+from operator import attrgetter
 from typing import Iterable
 
 import numpy as np
@@ -20,12 +21,12 @@ def candidate_verified_queue(candidates: Iterable, region: Box2D, duration: int)
     for cand_seg in candidates:
         segs = verify_seg(cand_seg, region, duration)
         if segs:
-            pos = bisect_right(verified, segs[0])
-            yield from islice(verified, pos)
-            if pos != len(verified):
-                segs.extend(islice(verified, pos, None))
-                segs.sort()
-            verified = segs
+            pos = bisect_right(verified, cand_seg.begin, key=attrgetter('begin'))
+            if pos > 0:
+                yield from islice(verified, pos)
+                verified = verified[pos:]
+            verified.extend(segs)
+            verified.sort(key=attrgetter('begin'))
     yield from verified
 
 
