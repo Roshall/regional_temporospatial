@@ -1,6 +1,4 @@
-import os.path
-
-import dill
+from itertools import takewhile
 from time import perf_counter as now
 
 from configs import cfg
@@ -15,22 +13,24 @@ from utilities.data_preprocessing import traj_data, gen_border, view_field
 from utilities.dataset import load_yolo_for
 
 
-def get_index(file_name, cfg):
+def get_index(file_name, cfg, higher_bound):
     data, cols, cls_map = dataset.load_yolo_for(file_name)
     trajs = traj_data(data, cols, 5, cls_map, scale=1)
     # broders = gen_border(trajs.bbox, 16, 11)
     broders = gen_border(view_field(data, *cols[-2:]), 8, 6)
     config.gird_border = broders
+    trajs = takewhile(lambda t: t[1] < higher_bound * 1.2, trajs)
     temp_spt = build_tempo_spatial_index(trajs, cfg)
     return temp_spt
 
 
 def query():
+    interval_bound = 60*60*70
     query_content = [
         Box2D((3280, 3551, 1429, 1665)),  # region
         {0: 1},  # label
         (5, 100),  # duration
-        (0, 60 * 60 * 60),  # interval
+        (0, interval_bound),  # interval
     ]
     query_content[0] = Box2D((700, 1000, 427, 569))
     match cfg.QUERY:
@@ -44,7 +44,7 @@ def query():
         case _:
             raise ValueError(f'wrong query type: {cfg.QUERY}')
     if cfg.QUERY.startswith('index'):
-        data = get_index(filename, cfg)
+        data = get_index(filename, cfg, interval_bound)
     else:
         data, _, _ = load_yolo_for(filename)
     count = 0
@@ -56,23 +56,27 @@ def query():
 
 
 def find_bug():
-    # FIXME: found base search's BUG -> expend method is too aggressive.
+    interval_bound = 60*60*70
     query_content = [
         Box2D((3280, 3551, 1429, 1665)),  # region
         {0: 1},  # label
         (5, 100),  # duration
-        (0, 60 * 60 * 60),  # interval
+        (60*60, interval_bound),  # interval
     ]
     query_content[0] = Box2D((700, 1000, 427, 569))
-    data = get_index(filename, cfg)
+    data = get_index(filename, cfg, interval_bound)
+    one = list(one_pass_search(data, *query_content))
     one = set((frozenset(ids), (s, e)) for ids, s, e in one_pass_search(data, *query_content))
     cfg.merge_from_file('configs/region_base.yml')
-    data = get_index(filename, cfg)
+    data = get_index(filename, cfg, interval_bound)
     two = set((frozenset(comv.labels), tuple(comv.interval)) for comv in base_search(data, *query_content))
+    print('one_pass_res_num:', len(one))
+    # print('one_pass_res:', one)
+    print('two_pass_res_num:', len(two))
     print('In one_pass but not  base: ', one - two)
     print('In base but not one_pass: ', two - one)
 
 
 filename = '../resource/dataset/traj_taipei_0412.pkl'
-query()
-# find_bug()
+# query()
+find_bug()
