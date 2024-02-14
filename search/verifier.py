@@ -39,7 +39,6 @@ def verify_seg(segment: TrajectorySequenceSeg, region: Box2D, duration: int) -> 
     """
     mask = region.enclose(segment.points)
     in_pos = np.flatnonzero(mask)
-    res = []
     if len(in_pos) != 0:
         sid, begin, label = segment.id, segment.begin, segment.label
         if mask.all():
@@ -50,13 +49,12 @@ def verify_seg(segment: TrajectorySequenceSeg, region: Box2D, duration: int) -> 
         seg_lens = np.diff(start_pos, append=len(in_pos))
         res_mask = np.flatnonzero(seg_lens >= duration)
         if mask[0] and seg_lens[0] < duration:
-            res.append(TrajectoryIntervalSeg(sid, begin, label, seg_lens[0]))
+            yield TrajectoryIntervalSeg(sid, begin, label, seg_lens[0])
 
-        res.extend(TrajectoryIntervalSeg(sid, begin + in_pos[start_pos[m]], label, seg_lens[m]) for m in res_mask)
+        yield from (TrajectoryIntervalSeg(sid, begin + in_pos[start_pos[m]], label, seg_lens[m]) for m in res_mask)
 
         if mask[-1] and seg_lens[-1] < duration:
-            res.append(TrajectoryIntervalSeg(sid, begin + in_pos[start_pos[-1]], label, seg_lens[-1]))
-    return res
+            yield TrajectoryIntervalSeg(sid, begin + in_pos[start_pos[-1]], label, seg_lens[-1])
 
 
 def obj_verify(target, label_map):
