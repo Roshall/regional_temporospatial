@@ -22,6 +22,7 @@ def load_fake():
     file_name = os.path.join(os.path.dirname(__file__), '/home/lg/VDBM/spatiotemporal/resource/dataset/fake_tracks.csv')
     data = pd.read_csv(file_name)
     columns = ['oid', 'fid', 'x', 'y']
+    data[['x', 'y']] *= 100
     return data, columns, data[['oid', 'cls']].drop_duplicates('oid').set_index('oid')['cls']
 
 
