@@ -24,6 +24,12 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
     :return: iterator of tuple(ids, start, end)
     """
     id_required = set(traj.id for traj in traj_required if timestamp - traj.begin >= duration)
+
+    if not id_required:
+        for traj in traj_required:
+            del active_space[traj.id]
+        return
+
     traj_cand = [active_space[traj_id] for traj_id in
                  takewhile(lambda x: timestamp - active_space[x].begin >= duration, active_space)]
     traj_cand.reverse()  # start at the least duration
