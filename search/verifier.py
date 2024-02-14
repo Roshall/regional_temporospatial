@@ -42,6 +42,10 @@ def verify_seg(segment: TrajectorySequenceSeg, region: Box2D, duration: int) -> 
     res = []
     if len(in_pos) != 0:
         sid, begin, label = segment.id, segment.begin, segment.label
+        if mask.all():
+            yield TrajectoryIntervalSeg(sid, begin, label, len(mask))
+            return
+
         start_pos = np.flatnonzero(np.diff(in_pos, prepend=-2) > 1)
         seg_lens = np.diff(start_pos, append=len(in_pos))
         res_mask = np.flatnonzero(seg_lens >= duration)
