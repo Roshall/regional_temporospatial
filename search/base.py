@@ -1,4 +1,5 @@
 import heapq
+import math
 from collections import Counter
 from collections.abc import Mapping
 from functools import partial
@@ -36,8 +37,8 @@ def absorb(trajectories: Mapping[int, Trajectory], duration):
                 res[1:-1] = remains
                 res = res.reshape(-1, 2)
                 res[:, 1] -= res[:, 0]  # length
-                yield from [TrajectoryIntervalSeg(tid, beg, traj.label, l)
-                            for beg, l in res if l >= duration]
+                yield from (TrajectoryIntervalSeg(tid, beg, traj.label, l)
+                            for beg, l in res if l >= duration)
                 continue
 
         s_len = seq[-1] - seq[0]
@@ -55,40 +56,51 @@ class BaseSliding:
         self.label_m = {}
         self.eq_push = partial(heapq.heappush, self.end_q)
         self.eq_group_pop = partial(group_until, self.end_q)
+        self.last_win_hi = 0
 
     def __iter__(self):
         terminal = self.interval[1]
-        last_end = self._init_state()
+        self._init_state()
 
         for ts, trajs in self.ts_grouped_traj:
-            if (traj_end := ts + self.dur - 1) >= terminal:
-                if traj_end == terminal:
+            if (end := ts + self.dur - 1) >= terminal:
+                if end == terminal:
                     self._add(trajs)
-                yield from self.check_new_pattern([terminal - self.dur + 1, terminal])
+                yield from self.start_point_pat_check([terminal - self.dur + 1, terminal])
                 break
 
-            if self.end_q:
-                cur_min_end = min(traj_end, self.end_q[0][0])
-                if cur_min_end > last_end and self.label_verifier(Counter(self.label_m.values())):
-                    # all objects' durations are longer than the window size
-                    while cur_min_end > last_end:
-                        yield CoMovementPattern(self.label_m.copy(), [last_end, last_end + self.dur - 1])
-                        last_end += self.dur - 1
-                if traj_end > cur_min_end:
-                    for ts_end, group in self.eq_group_pop(traj_end):
-                        yield from self.check_new_pattern([ts_end - self.dur + 1, ts_end])
-                        self._remove(group)
+            if self.end_q and end > self.end_q[0][0]:
+                for ts_end, group in self.eq_group_pop(end):
+                    yield from self.end_point_pat_check(ts_end, group)
+
+            if end > self.last_win_hi and self.label_verifier(Counter(self.label_m.values())):
+                yield from self.consecutive_check(end)
 
             self._add(trajs)
-            yield from self.check_new_pattern([ts, traj_end])
+            yield from self.start_point_pat_check([ts, end])
 
-            if traj_end == self.end_q[0][0]:
-                for _, group in self.eq_group_pop(traj_end):  # there must be only one group
+            if end == self.end_q[0][0]:
+                for _, group in self.eq_group_pop(end):  # there must be only one group
                     self._remove(group)
-            last_end = ts + self.dur - 1
+            self.last_win_hi = end + self.dur
         else:
             if self.end_q:
-                yield from self.check_new_pattern([terminal-self.dur+1, terminal])
+                for ts_end, group in self.eq_group_pop(math.inf):
+                    end = min(terminal, ts_end)
+                    yield from self.end_point_pat_check(end, group)
+
+    def end_point_pat_check(self, end, stale_trajs):
+        if self.label_verifier(Counter(self.label_m.values())):
+            yield from self.consecutive_check(end)
+            yield CoMovementPattern(self.label_m.copy(), [end - self.dur + 1, end])
+            self.last_win_hi = end + self.dur
+        self._remove(stale_trajs)
+
+    def consecutive_check(self, end):
+        label_m = self.label_m.copy()
+        while end > self.last_win_hi:
+            yield CoMovementPattern(label_m, [self.last_win_hi - self.dur + 1, self.last_win_hi])
+            self.last_win_hi += self.dur
 
     def _remove(self, group):
         for tid in group:
@@ -96,7 +108,6 @@ class BaseSliding:
 
     def _init_state(self):
         trajectories = self.ts_grouped_traj
-        trajectories.sort(key=attrgetter('begin'))
         ts_grouped_traj = groupby(trajectories, key=attrgetter('begin'))
         start = self.interval[0]
         for ts, trajs in ts_grouped_traj:
@@ -109,9 +120,9 @@ class BaseSliding:
                         self.end_q.append((tra.len + tra.begin - 1, tra.id))
 
         self.ts_grouped_traj = chain([(ts, trajs)], ts_grouped_traj)
-        return ts + self.dur - 1
+        self.last_win_hi = ts + self.dur - 1
 
-    def check_new_pattern(self, interval=None):
+    def start_point_pat_check(self, interval=None):
         if self.label_verifier(Counter(self.label_m.values())):
             yield CoMovementPattern(self.label_m.copy(), interval)
 
@@ -136,6 +147,7 @@ def base_search(spat_tempo_idx, region: Box2D, labels: Mapping, duration_range, 
             old.seg.extend([seg.begin, seg.begin + seg.len])
 
     trajs = list(absorb(visited, dur))
+    trajs.sort(key=attrgetter('begin'))
     if trajs:
         partial_res = BaseSliding(trajs, interval, dur, label_verifier)
         return expend(partial_res, label_verifier)
