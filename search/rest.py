@@ -30,8 +30,7 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
             del active_space[traj.id]
         return
 
-    traj_cand = [active_space[traj_id] for traj_id in
-                 takewhile(lambda x: timestamp - active_space[x].begin >= duration, active_space)]
+    traj_cand = [traj for traj in takewhile(lambda traj: timestamp - traj.begin >= duration, active_space.values())]
     traj_cand.reverse()  # start at the least duration
     for traj in traj_required:
         del active_space[traj.id]
