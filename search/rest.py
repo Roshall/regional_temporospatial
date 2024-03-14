@@ -88,6 +88,12 @@ def sliding_window(df, win_len):
         yield window
 
 
+def df_filter(df, reg_verifier, target_label):
+    df = df[df['cls'].isin(target_label)]  # class verification
+    df = df[reg_verifier(df[['x', 'y']])]  # region verification
+    return df
+
+
 def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
     # $prev stores seen patterns. Every pattern is a set of objs that co-moves a certain period
     # Note that in terms of object set, prev[0] ⊃ prev[1] ⊃ prev[2] ⊃ ...

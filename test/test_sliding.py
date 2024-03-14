@@ -1,7 +1,7 @@
 from functools import partial
 
 from search.co_moving import CoMovementPattern
-from search.rest import sliding_window, expend
+from search.rest import expend, df_filter
 from search.verifier import obj_verify, len_filter
 from search.baseline.naive import NaiveSliding
 from utilities.box2D import Box2D
@@ -13,15 +13,14 @@ class TestSliding:
     data, _, _ = load_fake()
     interval = 0, 10
     frames = group_by_frame(data, interval)
-    region = Box2D((0, 4, 0, 5))
+    region = Box2D((0, 400, 0, 500))
     labels = {0: 1}
     duration = 3
     obj_verifier = partial(obj_verify, labels)
-    windows = sliding_window(frames, duration)
+    dfilter = partial(df_filter, reg_verifier=region.enclose, target_label=labels.keys())
 
     def test_naive(self):
-        sliding = NaiveSliding(self.windows, self.duration, self.region.enclose,
-                               self.obj_verifier, len_filter, tuple(self.labels))
+        sliding = NaiveSliding(self.frames, self.duration, self.obj_verifier, len_filter, self.dfilter)
         res = list(sliding)
         assert len(res) == 8
 
@@ -29,8 +28,7 @@ class TestSliding:
         ans = [CoMovementPattern(labels={1: 0, 3: 0, 2: 0}, interval=[5, 10]),
                CoMovementPattern(labels={1: 0, 3: 0}, interval=[4, 10]),
                CoMovementPattern(labels={1: 0}, interval=[1, 10])]
-        sliding = NaiveSliding(self.windows, self.duration, self.region.enclose,
-                               self.obj_verifier, len_filter, tuple(self.labels))
+        sliding = NaiveSliding(self.frames, self.duration, self.obj_verifier, len_filter, self.dfilter)
         res = list(expend(sliding, self.obj_verifier))
 
         assert res == ans

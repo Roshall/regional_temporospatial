@@ -2,21 +2,20 @@ from collections import Counter
 from functools import partial
 
 from search.co_moving import CoMovementPattern
+from search.rest import sliding_window
 
 
 class NaiveSliding:
-    def __init__(self, windows, win_len, region_verifier, obj_verifier, len_filter, target_label):
-        self.wins_iter = windows
+    def __init__(self, frames, win_len, obj_ver, len_filter, dfilter):
+        self.wins_iter = sliding_window(frames, win_len)
         self.olen_m, self.label_m = Counter(), {}
-        self.reg_ver = region_verifier
         self.len_filter = partial(len_filter, self.olen_m, win_len)
-        self.obj_ver = obj_verifier
-        self.target_label = target_label
+        self.obj_ver = obj_ver
+        self.dfilter = dfilter
         self.win_len = win_len
 
     def _update(self, objs):
-        objs = objs[objs['cls'].isin(self.target_label)]  # class verification
-        objs = objs[self.reg_ver(objs[['x', 'y']])]  # region verification
+        objs = self.dfilter(objs)
         self.olen_m.update(objs['oid'])
         self.label_m.update(objs.set_index('oid')['cls'])
 
