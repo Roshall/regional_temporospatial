@@ -32,10 +32,10 @@ class TestTempSpatialIndex:
         test1, test2 = query4test()
 
         res = list(one_pass_search(self.tempo_spatial, *test1))
-        assert res == [([2, 3, 1], 5, 10), ([3, 1], 4, 10), ([1], 1, 10)]
+        assert res == [([1, 3, 2], 5, 10), ([1, 3], 4, 10), ([1], 1, 10)]
 
         res = list(one_pass_search(self.tempo_spatial, *test2))
-        assert res == [([5, 1, 3], 9, 18), ([2, 4, 5, 3], 11, 20), ([2, 4, 3], 11, 22)]
+        assert res == [([3, 1, 5], 9, 18), ([3, 5, 4, 2], 11, 20), ([3, 4, 2], 11, 22)]
 
 
 def test_verify_seg():

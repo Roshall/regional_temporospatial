@@ -31,7 +31,6 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
         return
 
     traj_cand = [traj for traj in takewhile(lambda traj: timestamp - traj.begin >= duration, active_space.values())]
-    traj_cand.reverse()  # start at the least duration
     for traj in traj_required:
         del active_space[traj.id]
 
@@ -44,12 +43,12 @@ def yield_co_move(duration: int, labels: Mapping[int, int], active_space: Mutabl
         for tra_label in labels:
             if result_bag[tra_label] < labels[tra_label]:
                 return
-        res_pos = np.diff(np.fromiter(map(attrgetter('begin'), traj_cand),
-                                      np.int32, len(traj_cand)), prepend=-1).nonzero()[0]
+        res_pos = np.flatnonzero(np.diff(np.fromiter(map(attrgetter('begin'), traj_cand),
+                                         np.int32, len(traj_cand)), append=-1))
         timestamp -= 1  # the end point is exclusive
-        for i in res_pos:
+        for i in res_pos[::-1]:  # start at the least duration
             traj = traj_cand[i]
-            yield ids[i:], traj.begin, timestamp
+            yield ids[:i+1], traj.begin, timestamp
             label = traj.label
             result_bag[traj.label] -= 1
             id_required.discard(traj.id)
