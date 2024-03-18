@@ -3,13 +3,13 @@ import math
 from collections import Counter
 from collections.abc import Mapping
 from functools import partial
-from itertools import chain, groupby
+from itertools import chain, groupby, islice
 from operator import attrgetter
 
 import numpy as np
 
 from search.co_moving import CoMovementPattern
-from search.rest import group_until, expend
+from search.rest import group_until, state_sliding
 from search.verifier import candidate_verified_queue, obj_verify
 from utilities.box2D import Box2D
 from utilities.trajectory import TrajectoryIntervalSeg, Trajectory
@@ -151,6 +151,14 @@ def base_search(spat_tempo_idx, region: Box2D, labels: Mapping, duration_range, 
     trajs.sort(key=attrgetter('begin'))
     if trajs:
         partial_res = BaseSliding(trajs, interval, dur, label_verifier)
-        return expend(partial_res, label_verifier)
+        return state_sliding(partial_res, label_verifier, base_maintainer)
     else:
         return iter([])
+
+
+def base_maintainer(cur, prev, new, count, to_absorb):
+    if to_absorb:
+        prev_iter = iter(prev)
+        return islice(prev_iter, count), prev_iter
+    else:
+        return prev, []
