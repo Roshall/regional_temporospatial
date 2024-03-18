@@ -118,7 +118,8 @@ class BaseSliding:
                     if start + tra.len > self.dur:
                         self.label_m[tra.id] = tra.label
                         self.end_q.append((tra.len + tra.begin - 1, tra.id))
-
+        else:
+            return
         self.ts_grouped_traj = chain([(ts, trajs)], ts_grouped_traj)
         self.last_win_hi = ts + self.dur - 1
 
