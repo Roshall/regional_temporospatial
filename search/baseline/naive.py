@@ -1,12 +1,14 @@
 from collections import Counter
 from functools import partial
 
+from search.base import base_maintainer
 from search.co_moving import CoMovementPattern
-from search.rest import sliding_window
+from search.rest import sliding_window, state_sliding
+from search.verifier import len_filter
 
 
 class NaiveSliding:
-    def __init__(self, frames, win_len, obj_ver, len_filter, dfilter):
+    def __init__(self, frames, win_len, obj_ver, dfilter):
         self.wins_iter = sliding_window(frames, win_len)
         self.olen_m, self.label_m = Counter(), {}
         self.len_filter = partial(len_filter, self.olen_m, win_len)
@@ -57,3 +59,8 @@ class NaiveSliding:
             if candi := self._filter(low, fid):
                 yield candi
             abandoned = win[0][1]['oid']
+
+
+def base_slider(frames, dur, obj_verifier, dfilter):
+    sliding = NaiveSliding(frames, dur, obj_verifier, dfilter)
+    return state_sliding(sliding, obj_verifier, base_maintainer)
