@@ -1,9 +1,9 @@
 from collections import deque
-from collections.abc import MutableMapping, Iterable
+from collections.abc import MutableMapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from heapq import merge
-from itertools import islice, groupby
+from itertools import groupby
 from operator import itemgetter
 from typing import Self
 
