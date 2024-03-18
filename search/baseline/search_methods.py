@@ -1,8 +1,9 @@
 from functools import partial
 
-from search.rest import sliding_window, expend
-from search.verifier import obj_verify, len_filter
-from search.baseline.naive import NaiveSliding
+from search.rest import df_filter
+from search.verifier import obj_verify
+from search.baseline.naive import base_slider
+from search.baseline.state import state_slider
 from utilities.data_preprocessing import group_by_frame
 
 
@@ -11,8 +12,12 @@ def sliding_framework(df, region, labels, duration, interval, *, method='base'):
     frames = group_by_frame(df, interval)
     obj_verifier = partial(obj_verify, labels)
     dfilter = partial(df_filter, reg_verfier=region.enclose, target_label=labels.keys())
-    if method == 'base':
-        sliding = NaiveSliding(frames, dur, obj_verifier, len_filter, dfilter)
-    else:
-        sliding = None
-    return expend(sliding, obj_verifier)
+    match method:
+        case 'base':
+            slider = base_slider
+        case 'state':
+            slider = state_slider
+        case _:
+            raise NotImplementedError(f'Unknown method: {method}')
+
+    return slider(frames, dur, obj_verifier, dfilter)
