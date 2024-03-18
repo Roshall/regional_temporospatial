@@ -1,7 +1,8 @@
 from functools import partial
 
+from search.base import base_maintainer
 from search.co_moving import CoMovementPattern
-from search.rest import expend, df_filter
+from search.rest import state_sliding, df_filter
 from search.verifier import obj_verify, len_filter
 from search.baseline.naive import NaiveSliding
 from utilities.box2D import Box2D
@@ -29,7 +30,7 @@ class TestSliding:
                CoMovementPattern(labels={1: 0, 3: 0}, interval=[4, 10]),
                CoMovementPattern(labels={1: 0}, interval=[1, 10])]
         sliding = NaiveSliding(self.frames, self.duration, self.obj_verifier, len_filter, self.dfilter)
-        res = list(expend(sliding, self.obj_verifier))
+        res = list(state_sliding(sliding, self.obj_verifier, base_maintainer))
 
         assert res == ans
 

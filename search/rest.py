@@ -93,66 +93,60 @@ def df_filter(df, reg_verifier, target_label):
     return df
 
 
-def expend(sliding_result: Iterable[CoMovementPattern], obj_varifier):
+def state_sliding(pat_series: Iterable[CoMovementPattern], obj_verifier, state_maintainer):
     # $prev stores seen patterns. Every pattern is a set of objs that co-moves a certain period
     # Note that in terms of object set, prev[0] ⊃ prev[1] ⊃ prev[2] ⊃ ...
-    sliding_result = iter(sliding_result)
-    cur = next(sliding_result, None)
+    pat_iter = iter(pat_series)
+    cur = next(pat_iter, None)
     if cur is None:
         return
     prev = [cur]
-    for cur in sliding_result:
-        prev_end = prev[0].end
-        if cur.start > prev_end + 1:  # not consecutive in time interval
-            for p in prev:
-                p.end = prev_end
-                yield p
-            prev = [cur]
-            continue
+    for cur in pat_iter:
+        absort = False
+        if cur.start > prev[0].end + 1:  # not consecutive in time interval
+            count = len(prev)
+            new = [cur]
+        else:
+            new = []
+            count = 0
+            for pat in prev:
+                inter = pat.objs & cur.objs
+                if len(inter) == len(pat):  # pat is a subset of cur
+                    if len(inter) == len(cur):  # pat equals to cur
+                        pat.end = cur.end
+                    else:
+                        new.append(cur)
+                    absort = True
+                    break
 
-        new = []
-        count = 0
-        cur_end = cur.end
-        absort = True
-        for pat in prev:
-            new_pattern = pat & cur
-            if len(new_pattern) == len(pat):  # pat is a subset of cur
-                if len(new_pattern) == len(cur):  # pat equals to cur
-                    pat.end = cur_end
-                else:
+                elif len(inter) == len(cur):  # cur is a proper subset of pat
+                    cur.start = pat.start
+                    count += 1
+
+                else:  # intersection is a new objet set
+                    new_pattern = CoMovementPattern({obj: cur.labels[obj] for obj in inter})
                     new.append(cur)
-                break
-
-            elif len(new_pattern) == len(cur):  # cur is a proper subset of pat
-                yield pat
-                cur.start = pat.start
-                count += 1
-
-            elif obj_varifier(new_pattern.label_count()):  # really a new pattern
-                new_pattern.interval = [pat.start, cur_end]
-                pat.end = prev_end
-                yield pat
-                new.append(cur)
-                cur = new_pattern
-                count += 1
+                    if obj_verifier(new_pattern.label_count()):  # a new pattern
+                        new_pattern.interval = [pat.start, cur.end]
+                        cur = new_pattern
+                        count += 1
+                    else:
+                        break
             else:
                 new.append(cur)
-                absort = False
-                break
-        else:
-            new.append(cur)
 
-        rests = islice(prev, count, None)
-        if absort:
-            new.extend(rests)
-        else:
-            for pat in rests:
-                pat.end = prev_end
-                yield pat
+        fruits, prev_iter = state_maintainer(cur, prev, new, count, absort)
+        prev_end = prev[0].end
+        for pat in fruits:
+            pat.end = prev_end
+            yield pat
+
+        new.extend(prev_iter)
         prev = new
 
     if prev:
-        cur_end = prev[0].end
-        for pat in prev:
-            pat.end = cur_end
+        fruits, _ = state_maintainer(cur, prev, [], len(prev), False)
+        prev_end = prev[0].end
+        for pat in fruits:
+            pat.end = prev_end
             yield pat
